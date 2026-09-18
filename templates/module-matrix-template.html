@@ -109,11 +109,13 @@
 <main id="matrix"></main>
 
 <!-- /ndv-module-matrix regenerates this block from <matrixRoot>/modules.json — do not hand-edit.
-     Sample data below is a placeholder shape, not a real project. -->
+     Sample data below is a placeholder shape, not a real project. rootRel = relative path
+     từ matrixRoot về repo root; path/tdd/spec là repo-root-relative. -->
 <script id="module-data" type="application/json">
 {
   "project": "Sample Project",
   "generated": "1970-01-01",
+  "rootRel": "../",
   "modules": [
     { "id": "CORE-EventBus",   "name": "EventBus",   "layer": 0, "path": "src/Core/EventBus",     "namespace": "Core.EventBus",   "deps": [],                                 "tdd": "", "spec": "Specs/CORE-EventBus",   "status": "implemented" },
     { "id": "CORE-Modules",    "name": "Modules",    "layer": 1, "path": "src/Core/Modules",      "namespace": "Core.Modules",    "deps": ["CORE-EventBus"],                  "tdd": "", "spec": "Specs/CORE-Modules",    "status": "implemented" },
@@ -134,6 +136,7 @@
     return;
   }
   const mods = data.modules || [];
+  const root = data.rootRel || "../";
   const hasPlanned = mods.some(m => (m.plannedDeps || []).length);
   document.getElementById("title").textContent = (data.project ? data.project + " — " : "") + "Module Matrix";
   document.title = (data.project ? data.project + " — " : "") + "Module Matrix";
@@ -171,9 +174,9 @@
         '<div class="deps"><b>deps:</b> ' + deps + '</div>' +
         (planned ? '<div class="deps planned-deps"><b>planned:</b> ' + planned + '</div>' : "") +
         '<div class="links">' +
-          (m.spec ? '<a href="../' + m.spec + '">spec</a>' : "") +
-          (m.tdd ? '<a href="../' + m.tdd + '">tdd</a>' : "") +
-          (m.path ? '<a href="../' + m.path + '">code</a>' : "") +
+          (m.spec ? '<a href="' + root + m.spec + '">spec</a>' : "") +
+          (m.tdd ? '<a href="' + root + m.tdd + '">tdd</a>' : "") +
+          (m.path ? '<a href="' + root + m.path + '">code</a>' : "") +
         '</div>';
       wrap.appendChild(card);
     });

@@ -13,6 +13,19 @@ the project mints its api standard.
 
 ## Rules
 
+### Naming
+
+- Package name MUST be lowercase, one word, no underscore; import path
+  `<project-module-path>/internal/<package>`.
+- Identifiers MUST be MixedCaps: exported `PascalCase`, unexported `camelCase`, no underscore
+  — constants included (`maxRetry`, `DefaultTimeout`; never `MAX_RETRY`).
+- Acronyms keep Go casing (`ID`, `HTTP`, `URL`) and MUST be spelled one way across the
+  stack; a datum crossing tiers keeps its stem and changes casing only
+  ([../Shared/coding-style.md](../Shared/coding-style.md)).
+- File names MUST be `snake_case.go`; tests `<file>_test.go`; persistence adapter
+  `<store>_repo.go` (see §Layer & dependency).
+- Business error sentinels `Err<Reason>` per §Error, transaction, logging.
+
 ### Package & wiring
 
 - One server module MUST be one package `server/<package>/`. A NEW package MUST take the

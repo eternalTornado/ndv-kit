@@ -7,6 +7,7 @@
   `<matrixRoot>/modules.json`) for project structure và dependencies.
 - Read the naming conventions và coding style của stack đang làm.
 - When working on a task or implementing, read the pitfalls document (nếu có) to avoid common mistakes.
+- Ngoại lệ: brownfield discovery (`/ndv-onboard` DISCOVER / reverse-doc) khi project chưa có register — code là observed source, đọc code trước là bản chất của bước đó.
 
 ## Testing policy
 
@@ -23,6 +24,8 @@ rules vẫn thắng toàn bộ kit — xem [../README.md](../README.md)).
 
 1. A written rationale (why the principle changes).
 2. A migration note (what existing code must be updated).
+
+Cả hai ghi vào [CHANGELOG.md](../CHANGELOG.md) — không ghi vào body rule file.
 
 ## Writing
 

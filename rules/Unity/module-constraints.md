@@ -1,9 +1,3 @@
----
-paths:
-  - "**/*.cs"
-  - "**/*.csx"
----
-
 # Unity Patterns — world / module / hot-path contracts
 
 > Cross-cutting principles (logging format, SDK adapter, Unity constraints table):
@@ -38,6 +32,12 @@ Events MUST NOT leak across world boundaries.
   home của project. Folder đặc thù ngoài list chỉ hợp lệ khi được declare trong module
   register của project; folder undeclared là vi phạm — hoặc fold vào closed layers, hoặc
   declare vào register.
+- `Editor/` (editor-only tooling, asmdef riêng) và `Test/` (dev/test harness) là hai
+  subfolder NON-LAYER được phép nằm trong module ngoài closed list: không chứa runtime
+  gameplay code, không tính vào dependency graph của module. Carve-out trong
+  [constitution.md](constitution.md) (`Find*` dưới `Test/`),
+  [asset-structure.md](asset-structure.md) (path-scan dưới `Editor/`) và
+  [ui-theming.md](ui-theming.md) (exclusion `Editor/**`, `Test/**`) áp cho hai folder này.
 - `Logic/` và `Model/` KHÔNG import `UnityEngine` và KHÔNG làm IO — phải 100% unit-testable,
   compile được khi remove Unity. Logging trong `Logic/` đi qua abstraction thuần C# (inject
   qua `Interfaces/`), không `UnityEngine.Debug`.

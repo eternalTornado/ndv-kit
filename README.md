@@ -5,18 +5,43 @@ Bộ agents + skills PORTABLE cho vòng đời feature game project, format theo
 Kit không chứa reference cứng vào một project cụ thể — mọi giá trị per-project nằm ở
 `ndvkit.config.json`, mọi convention per-project defer về `.claude/rules/**` của project host.
 
+## Cài đặt
+
+Repo này CHÍNH LÀ nội dung của folder `<project>/.claude/ndvkit/` — không có bước "copy
+vào" nào khác ngoài clone đúng chỗ.
+
+```bash
+# chạy tại repo root của project game
+git clone https://github.com/eternalTornado/ndv-kit.git .claude/ndvkit
+```
+
+Tên folder đích PHẢI là `ndvkit` (không phải `ndv-kit`): mọi skill/agent trong kit đọc
+hardcode path `.claude/ndvkit/ndvkit.config.json` và `.claude/ndvkit/rules/**`, và script
+Activation (xem mục [Activation](#activation)) symlink theo `../ndvkit/skills/` — sai tên
+folder làm vỡ cả hai.
+
+Sau khi clone:
+
+1. Sửa `ndvkit.config.json` theo project (xem [Config per-project](#config-per-project--ndvkitconfigjson)).
+2. Chạy Activation để kit được Claude Code auto-discover.
+
 ## Rule precedence (áp cho MỌI agent + skill trong kit)
 
 1. `.claude/rules/**` + `CLAUDE.md` của project host (auto-load) **thắng** mọi thứ trong kit khi mâu thuẫn.
-2. Domain nào host KHÔNG define → dùng **kit default rules** tại [`rules/`](rules/README.md) (`kitRulesRoot`) — bộ rules đầy đủ `Shared/` + `Unity/` + `Server/`, project-agnostic. Project mới có thể copy nguyên folder này vào `.claude/rules/` để auto-load (adopt = tự define rules riêng từ đó).
+2. Domain nào host KHÔNG define → dùng **kit default rules** tại [`rules/`](rules/README.md) (`kitRulesRoot`) — bộ rules đầy đủ `Shared/` + `Unity/` + `Server/`, project-agnostic. Sửa rule = ghi entry vào [`rules/CHANGELOG.md`](rules/CHANGELOG.md). Project mới có thể copy nguyên folder này vào `.claude/rules/` để auto-load (adopt = tự define rules riêng từ đó).
 3. Trước khi viết artifact/code, đọc rules liên quan theo thứ tự trên (coding style, naming, architecture, pitfalls, security/authority, id allocation).
-4. Kit methodology baseline (inline dưới đây, trùng với `rules/Shared/ai-discipline.md` — áp dụng khi các tầng trên không nói khác):
-   - **Verify trước khi claim** — mọi khẳng định về file/API/state phải qua tool (Read/Grep/Glob) trong session.
-   - **Không bịa** — source thiếu info → ghi `NEEDS CLARIFICATION: <câu hỏi cụ thể>` inline rồi dừng, không đoán từ "typical game".
-   - **Literal quote** — constant/formula/enum/edge-case chuyển từ source sang artifact phải quote nguyên văn kèm cite `<path>#<section>` hoặc `<path>:<line>`.
-   - **Finding format** — mọi audit/drift finding gồm Finding / Evidence (cite + quote) / Impact.
-   - **Update = replace** — đổi A thành B thì xóa A ghi B, không append changelog vào body.
-   - **Không estimate/timeline** trong artifact; **không commit** trừ khi user yêu cầu.
+4. Baseline AI behavior là R1–R10 trong [`rules/Shared/ai-discipline.md`](rules/Shared/ai-discipline.md) — SoT duy nhất, không restate ở đây:
+
+   - R1 — Tool-first, verify before claim
+   - R2 — Say "I don't know"
+   - R3 — Cite every claim
+   - R4 — Literal quote khi adopt source
+   - R5 — No AI-invented content trong artifact
+   - R6 — Follow chosen workflow, direct answer
+   - R7 — Finding + Evidence + Impact format
+   - R8 — Proposals: grounded, holistic, concise
+   - R9 — Single Source of Truth (cite-back)
+   - R10 — Enterprise register
 
 ## Pipeline
 
@@ -27,7 +52,7 @@ Kit không chứa reference cứng vào một project cụ thể — mọi giá 
 <tddRoot>/<Feature>/tdd.md                  (chỉ technical concern, mọi claim cite GDD anchor)
   │  /ndv-module-matrix       [agent: module-architect]
   ▼
-<matrixRoot>/modules.json + index.html      (waterfall layers: L0 Foundation → Ln; HTML+CSS light theme)
+<matrixRoot>/modules.json + index.html      (waterfall layers L0 → Ln; status derive; rootRel cho link)
   │  /ndv-tdd-to-spec         [agent: spec-writer]
   ▼
 <specsRoot>/<MODULE>/requirement.md         (EARS format, trace về TDD + GDD)
@@ -73,13 +98,21 @@ Brownfield adoption (add kit vào project giữa chừng):
 | `verifyNote` | Cách verify compile/build của project (vd "Unity MCP", "dotnet build", "npm test") — skill implement/audit dùng | optional |
 | `templates` | Folder template của kit | ✔ |
 
+Giá trị đang ship trong `ndvkit.config.json` của repo này là VÍ DỤ của một project Unity
+(Windows, verify qua MCP for Unity — xem `verifyNote`) — mọi key phải sửa theo project
+trước khi chạy bất kỳ skill nào. `verifyNote` là hook host-tooling DUY NHẤT mà kit định
+nghĩa để verify build/compile; kit không tự có test runner hay build script riêng.
+
 ## Layout
 
 ```text
 .claude/ndvkit/
 ├── README.md
+├── .gitignore                 # ignore .DS_Store
 ├── ndvkit.config.json         # giá trị per-project — file DUY NHẤT cần sửa khi đem sang project khác
 ├── rules/                     # KIT DEFAULT RULES — Shared/ + Unity/ + Server/ (xem rules/README.md)
+│   ├── CHANGELOG.md           # amendment history của rules (rationale + migration) — body rule chỉ giữ current state
+│   └── Shared/ Unity/ Server/
 ├── agents/                    # frontmatter: name/description/tools/model
 │   ├── tdd-writer.md
 │   ├── module-architect.md
@@ -113,10 +146,49 @@ Brownfield adoption (add kit vào project giữa chừng):
     └── module-matrix-template.html  # light theme, self-contained
 ```
 
+## Skills
+
+Thứ tự theo pipeline. `argument-hint` khớp frontmatter của từng `SKILL.md`.
+
+| Skill | Arguments | Agent spawn | Output | Gate/ghi chú |
+|---|---|---|---|---|
+| `/ndv-gdd-to-tdd` | `<gdd-path-or-feature-name> [--update]` | `tdd-writer` | `<tddRoot>/<Feature>/tdd.md` | user resolve `NEEDS CLARIFICATION` |
+| `/ndv-module-matrix` | `[<tdd-feature> \| <module-id>] [--render-only \| --verify]` | `module-architect` | `<matrixRoot>/modules.json` + `index.html` | layer không cycle; derive `status` (§Status lifecycle) |
+| `/ndv-tdd-to-spec` | `<tdd-feature> [<module-id>...]` | `spec-writer` | `<specsRoot>/<MODULE>/requirement.md` | TDD phải hết `NEEDS CLARIFICATION` trong scope |
+| `/ndv-specify` | `<module-id>` | — (inline) | `<specsRoot>/<MODULE>/specify.md` | zero `NEEDS CLARIFICATION` |
+| `/ndv-plan` | `<module-id>` | — (inline) | `<specsRoot>/<MODULE>/plan.md` | user approve (AskUserQuestion) |
+| `/ndv-tasks` | `<module-id>` | — (inline) | `<specsRoot>/<MODULE>/tasks.md` | user approve (AskUserQuestion) |
+| `/ndv-implement` | `<module-id> [--phase <n>] [--continue]` | `module-implementer` | code dưới `<codeRoots>/<Module>/` | hard gate: plan + tasks approved |
+| `/ndv-audit-module` | `<module-id> [--all]` | `module-auditor` | `<auditReportRoot>/<MODULE>-<yyyy-mm-dd>.md` (frontmatter `job: module-audit`, findings `- [ ] **F-NNN**`) | READ-ONLY trên code |
+| `/ndv-audit-code` | `[current [<path>] \| changes vs-<base>]` | `code-auditor` (vai FINDER + vai VERIFIER) | `<auditReportRoot>/code/<run>/` | READ-ONLY, estate-wide |
+| `/ndv-audit-standards` | `[current [<path>] \| changes vs-<base>]` | `standards-auditor` (vai FINDER + vai VERIFIER) | `<auditReportRoot>/standards/<run>/` | READ-ONLY, UI estate |
+| `/ndv-audit-fix` | `[<report-path> \| latest [code\|standards\|module]] [--ids F-001,F-002] [--severity <min>]` | `audit-fixer` | code fixes + tick/`## Triage` trong report | never commit; severity filter theo taxonomy đóng R7 |
+| `/ndv-onboard` | `[status \| matrix \| reverse-doc [<module-id>...]] (omit = hỏi)` | `onboarder` (+ `module-architect`/`tdd-writer`/`spec-writer` tuỳ option) | `onboard-<date>.md` / `modules.json` / TDD + requirement as-built | reverse-doc: clarifications chờ owner |
+| `/ndv-sync` | `[gdd\|tdd\|matrix\|spec\|code <target>] [--check-only]` | — (inline, route tới skill khác) | impact table (không tự tạo artifact riêng) | gate downstream không bị bypass |
+
+## Agents
+
+Tất cả 9 agent chạy `model: sonnet`. `code-auditor` và `standards-auditor` được skill của
+chúng spawn hai lần với vai khác nhau trong cùng một run: FINDER (quét, emit candidate) rồi
+VERIFIER (instance độc lập, cố refute candidate).
+
+| Agent | Model | Tools | Dùng bởi | Quyền trên code |
+|---|---|---|---|---|
+| `tdd-writer` | sonnet | Read, Glob, Grep, Write, Edit | `/ndv-gdd-to-tdd`; `/ndv-onboard` (Option 3, mode brownfield) | READ-ONLY (ghi TDD, không ghi code) |
+| `module-architect` | sonnet | Read, Glob, Grep, Write, Edit, Bash | `/ndv-module-matrix`; `/ndv-onboard` (Option 2) | READ-ONLY (ghi modules.json/index.html) |
+| `spec-writer` | sonnet | Read, Glob, Grep, Write, Edit | `/ndv-tdd-to-spec`; `/ndv-onboard` (Option 3) | READ-ONLY (ghi spec docs, không ghi code) |
+| `module-implementer` | sonnet | Read, Glob, Grep, Write, Edit, Bash | `/ndv-implement` | WRITE |
+| `module-auditor` | sonnet | Read, Glob, Grep, Bash, Write | `/ndv-audit-module` | READ-ONLY (file duy nhất ghi là report) |
+| `code-auditor` | sonnet | Read, Grep, Glob, Bash | `/ndv-audit-code` — vai FINDER và vai VERIFIER | READ-ONLY |
+| `standards-auditor` | sonnet | Read, Grep, Glob, Bash | `/ndv-audit-standards` — vai FINDER và vai VERIFIER | READ-ONLY |
+| `audit-fixer` | sonnet | Read, Glob, Grep, Write, Edit, Bash | `/ndv-audit-fix` | WRITE |
+| `onboarder` | sonnet | Read, Grep, Glob, Bash | `/ndv-onboard` — nhiệm vụ SURVEY (Option 1) và DISCOVER (Option 2) | READ-ONLY |
+
 ## Activation
 
-Kit ở trạng thái STAGED trong `.claude/ndvkit/` — Claude Code chỉ auto-discover
-`.claude/agents/` và `.claude/skills/`. Khi muốn kích hoạt:
+Folder đích phải là `.claude/ndvkit` (đã clone đúng chỗ theo mục [Cài đặt](#cài-đặt)) —
+hai script dưới đây giả định điều đó. Kit ở trạng thái STAGED trong `.claude/ndvkit/` —
+Claude Code chỉ auto-discover `.claude/agents/` và `.claude/skills/`. Khi muốn kích hoạt:
 
 ```powershell
 # Windows — junction skills (giữ ndvkit là SoT), copy agents
@@ -134,12 +206,15 @@ cp .claude/ndvkit/agents/*.md .claude/agents/
 
 Gỡ kích hoạt: xóa junction/symlink/file copy — `.claude/ndvkit/` vẫn nguyên.
 
+Agents đọc rules qua `kitRulesRoot` trong config, không qua link tương đối — copy sang
+`.claude/agents/` không làm vỡ tham chiếu.
+
 ## Artifact ownership & gates
 
 | Artifact | Owner tạo/update | Gate trước bước sau |
 |---|---|---|
 | `<tddRoot>/<Feature>/tdd.md` | `/ndv-gdd-to-tdd` | user review TDD |
-| `<matrixRoot>/` | `/ndv-module-matrix` | layer assignment không cycle |
+| `<matrixRoot>/` (`modules.json` + `index.html`) | `/ndv-module-matrix` — field `status` là giá trị DERIVE theo §Status lifecycle của skill (implemented → planned → specced → proposed); skill khác refresh bằng `/ndv-module-matrix <MODULE>` | layer assignment không cycle |
 | `<specsRoot>/<MODULE>/requirement.md` | `/ndv-tdd-to-spec` | — |
 | `<specsRoot>/<MODULE>/specify.md` | `/ndv-specify` | zero `NEEDS CLARIFICATION` còn sót |
 | `<specsRoot>/<MODULE>/plan.md` | `/ndv-plan` | **user approve** (AskUserQuestion) |
@@ -150,6 +225,7 @@ Gỡ kích hoạt: xóa junction/symlink/file copy — `.claude/ndvkit/` vẫn n
 | `<auditReportRoot>/standards/<run>/` | `/ndv-audit-standards` (READ-ONLY, UI estate) | — |
 | code fixes + tick/Triage trong audit report | `/ndv-audit-fix` | compile sạch theo `verifyNote` + Evidence formula hết hit |
 | `<auditReportRoot>/onboard-<date>.md` + matrix/TDD/requirement as-built | `/ndv-onboard` | reverse-doc: clarifications chờ owner trước khi vào forward flow |
+| `<auditReportRoot>/audit-learning.md` | `/ndv-audit-code` + `/ndv-audit-standards` (append-only, entry `L-NN`: pattern · root cause · rule-for-next-run · evidence; đọc đầu mỗi run nếu có) | — |
 
 Lưu ý collision: nếu project host đã có spec flow khác đang own artifact cùng tên trong
 `<specsRoot>/<MODULE>/` (vd `plan.md`, `tasks.md`), coi artifact đó là LEGACY INPUT

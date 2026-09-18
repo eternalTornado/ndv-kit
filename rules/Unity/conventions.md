@@ -39,6 +39,7 @@ Naming rules for Unity C#, assets, Addressables, UI Toolkit, and serialized data
 | `SaveData` | Serializable snapshot for persistence | `Model/` | `PlayerSaveData` |
 | `Module` | Composition root / system entry | `/` (module root) | `InventoryModule` |
 | `Controller` | MonoBehaviour driving a scene object or UI | `UI/` | `InventoryController` |
+| `View` | Presentation class của một UI screen (MVC pair với `Controller`) | `UI/` | `InventoryView` |
 | `Element` | Custom `VisualElement` (UI Toolkit) | `UI/` | `ItemCardElement` |
 
 ---

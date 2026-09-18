@@ -18,7 +18,7 @@ cột `code` UNIQUE (traceability về design doc). Id đã cấp là immutable 
 - Sub-range cấp theo family/decade (vd 40001–40009 family A, 40011–40019 family B); family
   mới lấy decade trống kế tiếp.
 - Cấp range/family mới hoặc đổi cấu trúc = owner decision, ghi lại được trace. Range dùng
-  quá ~80% phải mở discussion mở rộng trước khi cạn.
+  quá ≥80% phải mở discussion mở rộng trước khi cạn.
 
 ## Namespace tách biệt
 

@@ -54,4 +54,4 @@ Những gì module này CẦN từ module khác để thỏa các FR trên — k
 
 ## Open clarifications
 
-<List `NEEDS CLARIFICATION` — phải rỗng trước khi /ndv-specify chạy.>
+<List `NEEDS CLARIFICATION`. `/ndv-specify` resolve list này qua AskUserQuestion; specify.md chỉ được ghi khi list rỗng.>

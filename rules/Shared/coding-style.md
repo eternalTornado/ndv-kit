@@ -53,7 +53,7 @@ ALWAYS validate at system boundaries:
   [../Server/server.md](../Server/server.md)) hoặc host rules; JSON API field camelCase; một
   datum qua nhiều tier giữ nguyên stem, chỉ đổi casing (`banner_id` DB ↔ `bannerId` JSON)
 - Booleans: prefer `is`, `has`, `should`, or `can` prefixes
-- Constants: `UPPER_SNAKE_CASE`
+- Constants: theo stack rules — C# `UPPER_SNAKE_CASE` ([../Unity/conventions.md](../Unity/conventions.md)), Go MixedCaps ([../Server/server.md](../Server/server.md#naming))
 
 ## Code Smells to Avoid
 

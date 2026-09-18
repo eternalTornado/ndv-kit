@@ -18,6 +18,12 @@ chỉ đi kèm SAU symbol khi cần chỉ đúng một dòng (`<path>::<Type>.<M
 giờ đứng một mình cho code; web → kèm `#anchor` hoặc literal quote ≤2 câu. Symbol phải grep
 match trong file tại thời điểm ghi.
 
+**Audit Evidence carve-out**: report audit (`/ndv-audit-module`, `/ndv-audit-code`,
+`/ndv-audit-standards`) là snapshot tại một commit (frontmatter `git`). Evidence dùng
+`<path>::<Type>.<Member>:<line>` cho file có symbol; `<path>:<line>` + literal quote cho file
+không có symbol (markup, stylesheet, data, asset). Fixer verify bằng literal quote, không bằng
+line — quote lệch → `stale`.
+
 **BANNED**:
 
 - Cite từ memory ("tôi nhớ là file có…")
@@ -25,7 +31,7 @@ match trong file tại thời điểm ghi.
 - Root URL khi content nằm sub-section
 - Section number không kèm tên
 - Path chưa verify tồn tại
-- Cite code bằng `<path>:<line>` không kèm symbol (line-only anchor vỡ khi code dịch dòng)
+- Cite code bằng `<path>:<line>` không kèm symbol ngoài audit carve-out ở trên (line-only anchor vỡ khi code dịch dòng)
 
 > Link đúng **nội dung**, không link đúng **chủ đề**.
 
@@ -48,9 +54,9 @@ Thừa nhận không biết là output hợp lệ; bịa là vi phạm.
 
 ## R3 — Cite every claim
 
-Mọi fact / value / decision phải kèm: `<path>:<line>` (local) hoặc `<path>#<section>`, grep
-output, web `URL#anchor`, hoặc literal quote ≤2 câu. Phải đã read / grep location đó trong
-session hiện tại.
+Mọi fact / value / decision phải kèm: `<path>#<section>` (doc) hoặc `<path>::<Type>.<Member>`
+(code, theo R1), grep output, web `URL#anchor`, hoặc literal quote ≤2 câu. Phải đã read / grep
+location đó trong session hiện tại.
 
 Cite vào code: symbol phải grep-match trong file tại thời điểm ghi artifact. Anchor code kế
 thừa từ artifact thượng nguồn (TDD, requirement, modules.json, audit report) mà chưa mở lại
@@ -132,8 +138,12 @@ AI scope:
 Mọi finding trong research / audit / analysis artifact phải có 3 phần:
 
 1. **Finding**: vấn đề / data point (1 câu)
-2. **Evidence**: source cite (`<path>:<line>` / `<URL>#anchor` / grep output) + literal quote ≤2 câu
+2. **Evidence**: source cite (`<path>#<section>` / `<path>::<Symbol>[:<line>]` / `<URL>#anchor` / grep output) + literal quote ≤2 câu
 3. **Impact**: 1 câu giải thích relevance / hậu quả
+
+**Severity** (tập đóng, SoT tại đây): `blocker · critical · high · medium · low · info`.
+Guide lens-specific (điều kiện nào rơi vào mức nào) sống trong agent audit tương ứng; không
+mint mức mới, không viết hoa biến thể.
 
 **BANNED**:
 
@@ -159,7 +169,7 @@ Mọi đề xuất (artifact hoặc chat) MUST:
 
 ```text
 Đề xuất: <action>
-Source: <path:line / URL + quote ≤2 câu>
+Source: <path#section hoặc path::Symbol / URL + quote ≤2 câu>
 Trade-off: <≤1 câu impact / cost>
 ```
 
@@ -168,7 +178,7 @@ Trade-off: <≤1 câu impact / cost>
 ## R9 — Single Source of Truth: cite-back, never duplicate
 
 Mỗi fact / value / taxonomy / threshold / decision / rule có **đúng 1 canonical location**.
-Cite-back (`[name](path)` hoặc `<path>:<line>`), KHÔNG restate body.
+Cite-back (`[name](path)` hoặc `<path>#<section>`), KHÔNG restate body.
 
 **Canonical location index** — mỗi project MAINTAIN một bảng map content → SoT trong host
 rules. Khi host chưa có, default của kit:
@@ -183,6 +193,9 @@ rules. Khi host chưa có, default của kit:
 | Module dependency hiện trạng | `<matrixRoot>/modules.json` (register, pipeline sinh) |
 | Module contract per module | `<specsRoot>/<MODULE>/` artifacts |
 | GDD content (gameplay rules, balance) | `<gddRoot>/**` (Design managed) |
+| Severity taxonomy (audit) | file này §R7 |
+| Glossary (canonical term per domain) | host rules |
+| Amendment history của rules kit | `CHANGELOG.md` |
 
 **Allowed exceptions** (limited duplication):
 
@@ -197,7 +210,8 @@ với wording khác; paraphrase canonical rule body.
 ### R9.1 — Body vs history separation
 
 **Body** của artifact = current state. **History / lifecycle** sống ở single sources:
-frontmatter `created`/`updated`, STATUS/changelog doc per system (nếu project có), git log.
+frontmatter `created`/`updated`, STATUS/changelog doc per system (nếu project có), git log;
+rules của kit: [CHANGELOG.md](../CHANGELOG.md).
 
 **BANNED inline body decoration**: `chốt <date>`, `RESOLVED <date>`, `patched <date>`,
 `(Recommended)`, "Đã chốt", "Đã apply" trong body text.
@@ -239,23 +253,11 @@ Không có section này = vi phạm.
 
 ## Enforcement
 
-- Audit skill của kit (`/ndv-audit-module`) và audit skill riêng của host (nếu có) flag vi
+- Audit skills của kit (`/ndv-audit-module`, `/ndv-audit-code`, `/ndv-audit-standards`) và audit skill riêng của host (nếu có) flag vi
   phạm theo format R7 + severity.
 - Human review: code review flag vi phạm; AI không self-approve.
 
-## Amendments
-
-### 2026-09-18 — R1, R3, R4: cite code theo symbol
-
-- **Rationale**: một lần sửa `GameLose.cs` (dịch dòng, không đổi hành vi) làm sai anchor
-  `path:line` ở 3 TDD, 1 requirement.md, 1 plan.md, 1 audit report và modules.json cùng lúc;
-  estate có 777 anchor line-based trỏ vào code và không bước nào trong pipeline verify chúng.
-  Line number là định danh vỡ khi thêm một dòng trống; symbol chỉ vỡ khi rename — thay đổi
-  ngữ nghĩa thật, đáng vỡ.
-- **Migration**: anchor `<path>:<line>` vào code đã có trong artifact vẫn đọc được, không
-  migrate hàng loạt; chuyển sang symbol khi artifact sở hữu được ghi lại lần kế tiếp (mọi
-  skill idempotent). `/ndv-sync` Phase 1 báo `broken-cite` cho anchor không còn khớp.
-
 ## Governance
 
-Amendment cho R1–R10 theo [constitution.md](constitution.md): written rationale + migration note.
+Amendment cho R1–R10 theo [constitution.md](constitution.md): written rationale + migration
+note, ghi tại [CHANGELOG.md](../CHANGELOG.md).

@@ -10,7 +10,7 @@ updated: <yyyy-mm-dd>
 # Tasks — <MODULE>
 
 > Ordered theo phase = dependency order của plan skeleton. Một task = một reviewable
-> unit (≤ ~1 file cluster), map về FR. `[P]` = parallelizable trong cùng phase.
+> unit (≤1 file cluster), map về FR. `[P]` = parallelizable trong cùng phase.
 > Test task theo TEST POLICY của host rules. KHÔNG estimate.
 > Task đã `[x]` là immutable — plan delta sinh REWORK task mới, không uncheck.
 

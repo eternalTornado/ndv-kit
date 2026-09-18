@@ -7,7 +7,7 @@ Bộ rules DEFAULT của kit — dùng khi project host KHÔNG tự define rules
 1. **Host rules thắng**: nếu project có `.claude/rules/**` / `CLAUDE.md` define rule cùng domain,
    rule của host OVERRIDE rule tương ứng trong bộ này (kể cả khi mâu thuẫn trực tiếp).
 2. **Kit rules là fallback**: domain nào host im lặng → áp rule trong bộ này.
-3. Trong bộ này, khi rule mâu thuẫn nhau: `Shared/` (cross-stack) > stack-specific (`Unity/`, `Server/`).
+3. Trong bộ này, khi rule mâu thuẫn nhau: `Shared/` (cross-stack) > stack-specific (`Unity/`, `Server/`). TRỪ domain mà Shared explicitly delegate cho stack (naming identifier: stack rules là SoT — xem `Shared/coding-style.md` §Naming).
 
 ## Cách dùng
 
@@ -20,7 +20,7 @@ Bộ rules DEFAULT của kit — dùng khi project host KHÔNG tự define rules
 
 | Nhóm | Nội dung |
 |---|---|
-| `Shared/` | Cross-stack: `constitution` (principles + writing + governance), `ai-discipline` (R1–R10 AI behavior), `id-plan` (id allocation invariants), `coding-style`, `performance`, `security`. |
+| `Shared/` | Cross-stack: `constitution` (principles + writing + governance), `ai-discipline` (R1–R10 AI behavior), `id-plan` (id allocation invariants), `coding-style`, `security`. |
 | `Unity/` | Client Unity: `constitution` (engine constraints), `conventions` (naming), `coding-style` (C#), `module-constraints` (world/module/hot-path), `naming-ui-toolkit`, `ui-theming` (reskin/token), `asset-structure`, `security` (trust boundary), `known-pitfalls`. Project không dùng Unity → bỏ qua nhóm này. |
 | `Server/` | BE Go/PostgreSQL: `server.md` (structure), `db.md` (schema). Project không có BE hoặc dùng stack khác → bỏ qua. |
 
@@ -36,3 +36,4 @@ Rule chỉ định INVARIANT; register ghi hiện trạng.
 - Rule tự chứa, project-agnostic — KHÔNG chứa tên class/path/asset cụ thể của một project
   (những thứ đó thuộc register/report/host rules).
 - Trùng nội dung thì gộp về đúng một home; file khác cite-back, không restate.
+- Đổi rule hiện có → ghi entry vào [CHANGELOG.md](CHANGELOG.md) (rationale + migration note); body rule chỉ giữ current state.

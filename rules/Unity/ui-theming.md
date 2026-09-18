@@ -85,3 +85,5 @@ per-line. `<uiRoot>` = folder UI chính của project (declare trong host rules;
 | reuseCoveragePct | ≥90% | shared component fragment ÷ (shared + copy-paste fragment) |
 | inlineDuplication | 0 | UXML/USS block duplicated ≥2 chỗ |
 | codeBuiltVisualElementCount | 0 | `grep -rnE "new (VisualElement\|Label\|Button\|Image\|ScrollView\|TextField\|Toggle)\(" --include=*.cs` trừ `Editor/**`, `Test/**` |
+| reskinReady (per screen) | true | tokenAdoption của screen ≥95% ∧ inline-style literal trong screen = 0 ∧ đúng một `<screen>Root` ∧ duplicateElementName (flat-query) trong screen = 0 |
+| reskinReadyPct | ≥90% | số screen `reskinReady = true` ÷ tổng screen UXML |
