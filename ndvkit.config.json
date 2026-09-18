@@ -1,0 +1,15 @@
+{
+  "gddRoot": "GDD",
+  "tddRoot": "docs/TDD",
+  "matrixRoot": "docs/ModuleMatrix",
+  "specsRoot": "docs/Specs",
+  "auditReportRoot": "docs/reports/ndv-audit",
+  "codeRoots": [
+    "Assets/_Game/Scripts"
+  ],
+  "contractsDoc": "",
+  "rulesRoot": ".claude/rules",
+  "kitRulesRoot": ".claude/ndvkit/rules",
+  "verifyNote": "Unity Editor luon mo san; verify qua MCP server 'UnityMCP' (MCP for Unity, HTTP http://127.0.0.1:8081/mcp, khai bao trong .mcp.json). Sau moi phase: read_console action=clear -> refresh_unity mode=force compile=request wait_for_ready=true -> read_console types=[error,warning]; console phai 0 error/0 warning. validate_script de check mot file truoc khi refresh. Khong co test runner, khong chay dotnet build/npm test. Fallback khong co MCP: grep 'error CS|warning CS' trong %LOCALAPPDATA%/Unity/Editor/Editor.log.",
+  "templates": ".claude/ndvkit/templates"
+}
