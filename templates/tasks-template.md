@@ -13,6 +13,20 @@ updated: <yyyy-mm-dd>
 > unit (≤1 file cluster), map về FR. `[P]` = parallelizable trong cùng phase.
 > Test task theo TEST POLICY của host rules. KHÔNG estimate.
 > Task đã `[x]` là immutable — plan delta sinh REWORK task mới, không uncheck.
+> Task `<files>` chỉ nằm dưới `paths` của module này (`<matrixRoot>/modules.json`) hoặc là file
+> không thuộc `paths` của module nào; thứ cần ở file của module khác = row Prerequisites, không
+> phải task.
+
+## Prerequisites (blocking — owned by other modules)
+
+> Derive từ `specify.md` §Contract surface (final) — không hand-author need mới ở đây. `/ndv-implement`
+> Phase 0 verify từng row; row chưa thỏa chặn các task ở cột `Chặn task`. `Verify` = symbol
+> `<path>::<Type>.<Member>` khi owner đã có code, hoặc `owner tasks` (thỏa khi mọi task của owner cover
+> `Owner FR` đã `[x]`). `Stopgap` = `—` hoặc `approved <yyyy-mm-dd>: <file được phép ghi>` (event record
+> của quyết định user qua AskUserQuestion). Không có prerequisite → `N/A`.
+
+| Cần | Owning module | Owner FR | Verify | Stopgap | Chặn task |
+|---|---|---|---|---|---|
 
 ## Phase 1 — <tầng thấp nhất của skeleton, vd Data/Model>
 

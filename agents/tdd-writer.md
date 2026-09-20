@@ -11,7 +11,8 @@ Design Documents that engineers implement from — nothing more.
 Before writing: read the host project's `.claude/rules/**` and `CLAUDE.md`
 (they OVERRIDE this prompt on conflict; where the host defines no rule, apply the
 kit default rules at `.claude/ndvkit/rules/**`), plus
-`.claude/ndvkit/ndvkit.config.json` for paths. Kit baseline rules that bind hardest here:
+`.claude/ndvkit/ndvkit.config.json` for paths. AI behavior: `Shared/ai-discipline.md`
+(worker core — `ai-discipline-session.md` is for the main session). What binds hardest here:
 
 - **Literal quote**: every balance constant, formula, enum value, ID list,
   edge-case condition copied from GDD MUST be a literal quote with cite
@@ -64,7 +65,9 @@ GDD covers the feature, code↔GDD divergence goes to a `## Drift vs GDD` sectio
 
 1. Read the assigned GDD section(s) fully before writing anything.
 2. Read the existing TDD at `<tddRoot>/<Feature>/tdd.md` if present — you
-   UPDATE (A→B: delete A, write B; no changelog append).
+   UPDATE (A→B: delete A, write B; no changelog append): re-check every literal quote + GDD
+   cite of the TDD against the GDD you just read and rewrite only the sections whose source
+   changed or whose cite no longer resolves; untouched sections stay byte-identical.
 3. Fill the structure of `<templates>/tdd-template.md`. Every section header
    kept; empty optional section = `N/A — <reason>`.
 4. Cross-check against existing module/contract docs of the host (the
@@ -74,5 +77,6 @@ GDD covers the feature, code↔GDD divergence goes to a `## Drift vs GDD` sectio
    the code file, confirm the symbol exists (Grep), cite it per the As-built
    reference rule. A row whose target you did not open this session gets no code
    anchor.
-6. Return: path written + list of `NEEDS CLARIFICATION` items (these go back
-   to the user/Design Lead — do not resolve them yourself).
+6. Return: path written + one-line summary per section (the orchestrator does not re-read
+   the TDD) + sections rewritten (update mode) + list of `NEEDS CLARIFICATION` items (these go
+   back to the user/Design Lead — do not resolve them yourself).

@@ -4,6 +4,51 @@ File này là nơi DUY NHẤT ghi amendment cho rules của kit (written rationa
 theo [Shared/constitution.md](Shared/constitution.md) §Governance). Body của rule file chỉ
 chứa current state (R9.1).
 
+## 2026-09-20 — Unity/ui-theming.md: formula Audit criteria chạy được + deadBindCount
+
+- **Rationale**: formula trong bảng §Audit criteria viết alternation dạng `\|` (escape của
+  markdown table) — copy nguyên văn vào `grep -E` trả 0 hit trên macOS, nên mọi metric target 0
+  (`hardcodedColorLiterals`, `inlineStyleLiterals`, `codeBuiltVisualElementCount`) luôn đạt giả;
+  đồng thời protocol audit cấm `\|`. `--include=*.uss` không nháy vỡ trên zsh. Procedure
+  anti-miss dead-bind chỉ sống trong agent audit, không nằm trong bộ chuẩn.
+- **Migration**: formula chuyển xuống code block F-01…F-05 (`|` thường, `--include` trong nháy
+  đơn); thêm metric `deadBindCount`. Report audit cũ có metric target 0 đo bằng formula cũ cần
+  chạy lại — giá trị 0 trong đó không đáng tin.
+
+## 2026-09-20 — Shared/ai-discipline.md: tách worker core / session, thêm cite `decision:`
+
+- **Rationale**: mọi sub-agent đọc cả 11KB R1–R10 mỗi lần spawn trong khi worker chỉ cần
+  R1–R5 + R7; R6, R8–R10 + governance chỉ áp cho main session. Banned quantifier lặp ở R5 và
+  R10. Câu trả lời của user khi resolve `NEEDS CLARIFICATION` không có form cite hợp lệ theo R3.
+  R1/R7/Enforcement còn nêu tên ba audit skill sau khi kit gộp về một `/ndv-audit-code`.
+- **Migration**: R6, R8, R9, R9.1, R10, Exception, Enforcement, Governance chuyển sang
+  `Shared/ai-discipline-session.md` (số R giữ nguyên). Cite dạng
+  `ai-discipline.md#r6…|#r8…|#r9…|#r10…` trong artifact host → đổi sang
+  `ai-discipline-session.md#…` như một cite-only edit (`/ndv-sync` báo `broken-cite`). Quantifier
+  list: SoT ở R5, R10 cite-back. R3 thêm form `decision: <yyyy-mm-dd> — "<answer>"`; R9.1 cho
+  phép form này trong body. `Shared/constitution.md` §Context Loading Protocol: ngoại lệ
+  brownfield đổi tên bước theo `/ndv-onboard` mới (không còn agent `onboarder`).
+
+## 2026-09-19 — R1: cite rule file bằng path đã mở
+
+- **Rationale**: một lượt chạy pipeline trên host không adopt rules sinh 150 cite dạng
+  `<rulesRoot>/Unity|Shared/<file>.md` trong 19 file trỏ vào file không tồn tại (file thật nằm
+  dưới `<kitRulesRoot>`); nguyên nhân: tên ngắn `Unity/…` trong rules bị ghép với `<rulesRoot>`,
+  và không bước nào của pipeline verify cite vào doc/rule.
+- **Migration**: host thay `<rulesRoot>/(Unity|Shared|Server)/` → `<kitRulesRoot>/\1/` ở những
+  cite mà file không tồn tại dưới `<rulesRoot>`, thực hiện như một cite-only edit (`/ndv-sync`
+  §Cite-only edit); `/ndv-sync` Phase 1 báo các cite này là `broken-cite`.
+
+## 2026-09-19 — Bulk re-anchor thay lazy migration cho cite code
+
+- **Rationale**: lazy migration (entry 2026-09-18 bên dưới) khiến anchor vỡ trước rồi mới được
+  chuyển: một lượt implement thêm 30 dòng vào một file làm vỡ thêm 6 anchor ở artifact của
+  module khác.
+- **Migration**: chạy `/ndv-sync --reanchor` một lần cho cả estate (script
+  `skills/ndv-sync/scripts/ndv_check.py`); anchor không còn khớp giữ nguyên và được báo
+  `broken-cite`; thay cho ghi chú "không migrate hàng loạt" của entry 2026-09-18.
+  `/ndv-implement` Phase 3 chạy cite sweep sau mỗi lượt implement.
+
 ## 2026-09-18 — R1, R3, R4: cite code theo symbol
 
 - **Rationale**: một lần sửa `GameLose.cs` (dịch dòng, không đổi hành vi) làm sai anchor

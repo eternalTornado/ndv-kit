@@ -3,7 +3,7 @@ name: ndv-plan
 description: "Bước 4b pipeline ndvkit (SDD plan): từ specify.md tạo/refresh <specsRoot>/<MODULE>/plan.md — technical design (module skeleton, types, data flow, wiring) theo module convention của project host. Kết thúc bằng gate AskUserQuestion approve; plan chưa approve thì không được implement. Dùng khi specify mới/đổi hoặc design cần revise."
 argument-hint: "<module-id>"
 user-invocable: true
-allowed-tools: Read, Glob, Grep, Write, Edit, AskUserQuestion, TodoWrite
+allowed-tools: Read, Glob, Grep, Write, Edit, Bash, AskUserQuestion, TodoWrite
 ---
 
 When this skill is invoked:
@@ -44,6 +44,10 @@ Fill `<templates>/plan-template.md`:
   wire contracts (event/serialization conventions per host rules). Existing
   components/methods are named by symbol `<path>::<Type>.<Member>`; new ones by
   name + folder per the skeleton.
+- **As-built vs to-be-replaced**: code the plan keeps or extends is cited by symbol in present
+  tense. Code the plan's own tasks will REPLACE is written as `trước implement: …` + the symbol of
+  the containing member — never `:<line>`, never "currently"/"hiện tại": that sentence turns false
+  the moment `/ndv-implement` lands, and an approved plan must stay true after its own implement.
 - **Dependency wiring**: the module's declared dependencies must equal the
   modules.json entry's `deps[] ∪ plannedDeps[]`; anything extra = go back to
   `/ndv-module-matrix` first (an edge the plan needs but code does not have yet
@@ -63,7 +67,9 @@ options.
 1. Present the plan summary (skeleton + FR mapping + risks).
 2. AskUserQuestion: "Approve plan cho <MODULE>?" — options: Approve / Revise
    (specify what) / Reject.
-3. On Approve: set frontmatter `approved: true` + date in plan.md, then run
-   `/ndv-module-matrix <MODULE>` (`status` → `planned`).
+3. On Approve: set frontmatter `approved: true` + date in plan.md, then refresh status:
+   `python3 .claude/ndvkit/skills/ndv-sync/scripts/ndv_check.py --refresh-status <MODULE> --write`
+   (`status` re-derive theo `/ndv-module-matrix` §Status lifecycle — module đã có code và hết
+   task mở vẫn là `implemented` cho tới khi `/ndv-tasks` thêm task mới).
    On Revise: apply, re-ask. Never mark approved yourself without the answer.
 4. Next: `/ndv-tasks <MODULE>`.

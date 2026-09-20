@@ -10,6 +10,10 @@ updated: <yyyy-mm-dd>
 > EARS format. Mỗi requirement: đúng MỘT pattern, đúng MỘT behavior testable,
 > ID stable (không renumber), cite về TDD section. Giá trị đo được theo numeric
 > convention của host rules. Gap = `NEEDS CLARIFICATION` ngay tại requirement đó.
+>
+> FR back-propagated từ Contract surface của module tiêu thụ dùng Source dạng
+> `contract: <specsRoot>/<Consumer>/specify.md#Contract surface — "<row Cần>"` (kèm cite
+> TDD/GDD khi TDD có nêu need); forward pass từ TDD không xóa và không ghi đè FR này.
 
 ## EARS patterns (chuẩn duy nhất được dùng)
 
@@ -44,8 +48,19 @@ updated: <yyyy-mm-dd>
 ## Contract surface
 
 Những gì module này CẦN từ module khác để thỏa các FR trên — không absorb vào own scope.
+`Owner FR` = ID FR/NFR trong `<specsRoot>/<Owning module>/requirement.md` cấp need này (Grep ID khớp,
+không bịa ID); chưa có → ghi `contract-gap`. `/ndv-specify` Phase 4 đóng gap.
 
-| Cần | Owning module | Dạng | FR liên quan |
+| Cần | Owning module | Dạng | Owner FR | FR liên quan |
+|---|---|---|---|---|
+
+## Consumer obligations
+
+Những gì module này BUỘC module tiêu thụ phải làm để contract đúng (vd gọi validate trước khi đọc giá
+trị) — chiều ngược của Contract surface. `Consumer FR` = ID trong requirement.md của consumer; chưa có →
+`contract-gap`. Không có nghĩa vụ nào → `N/A`.
+
+| Nghĩa vụ | Consumer module | Consumer FR | FR nguồn |
 |---|---|---|---|
 
 ## Out of scope

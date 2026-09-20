@@ -37,7 +37,19 @@ updated: <yyyy-mm-dd>
 
 ## Contract surface (final)
 
-| Cần | Owning module | Interface/Event cụ thể | FR |
+> `Owner FR` = ID trong `<specsRoot>/<Owning module>/requirement.md` (Grep ID khớp). Row chưa có owner FR =
+> `contract-gap` — `/ndv-specify` Phase 4 xử lý; gap còn mở phải nêu trong report. Stopgap có chủ đích:
+> ghi `stopgap — <Owning module> Out of scope`.
+
+| Cần | Owning module | Interface/Event cụ thể | Owner FR | FR |
+|---|---|---|---|---|
+
+## Consumer obligations (final)
+
+> Nghĩa vụ module này đặt lên consumer. `Consumer FR` = ID trong requirement.md của consumer; chưa có →
+> `contract-gap`. Không có → `N/A`.
+
+| Nghĩa vụ | Consumer module | Consumer FR | FR nguồn |
 |---|---|---|---|
 
 ## Traceability

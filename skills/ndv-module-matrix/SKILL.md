@@ -1,90 +1,80 @@
 ---
 name: ndv-module-matrix
-description: "Bước 2 pipeline ndvkit: build/update ModuleMatrix — module dependency graph theo waterfall layer (L0 Foundation → Ln), data ở modules.json, render index.html (HTML+CSS light theme, self-contained). Dùng khi có TDD mới, module mới, dependency đổi, hoặc cần re-render."
-argument-hint: "[<tdd-feature> | <module-id>] [--render-only | --verify]"
+description: "Bước 2 pipeline ndvkit: build/update ModuleMatrix — module dependency graph theo waterfall layer (L0 Foundation → Ln). Data ở <matrixRoot>/modules.json; view modules.md + field status do script ndv_check.py sinh (không tốn agent). Dùng khi có TDD mới, module mới, dependency đổi."
+argument-hint: "[<tdd-feature> | <module-id>] [--verify]"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Write, Edit, Bash, Task, AskUserQuestion, TodoWrite
 ---
 
 When this skill is invoked:
 
-## Phase 0 — Config & rules
+## Phase 0 — Config
 
-Read `.claude/ndvkit/ndvkit.config.json` (`matrixRoot`, `tddRoot`,
-`specsRoot`, `codeRoots`, `contractsDoc`, `templates`). Rule source: host
-`.claude/rules/**` + `CLAUDE.md` nếu có; domain nào host không define → dùng kit
-default rules tại `.claude/ndvkit/rules/**`. Host thắng khi mâu thuẫn.
+Read `.claude/ndvkit/ndvkit.config.json` (`matrixRoot`, `tddRoot`, `specsRoot`, `codeRoots`,
+`contractsDoc`, `auditReportRoot`). Module convention + rule precedence do agent
+`module-architect` tự resolve (host `.claude/rules/**` > kit `.claude/ndvkit/rules/**`).
 
 ## Parse arguments
 
-- `<tdd-feature>` — restrict the update to modules of one TDD; omit = full
-  pass over all `<tddRoot>/**/tdd.md`.
-- `<module-id>` — restrict the update to ONE modules.json entry (an id from the
-  host's module table). Used by `/ndv-implement` Phase 3 and `/ndv-audit-module`
-  register-fix: re-derive that module's `deps` from the code under its `path`,
-  promote every `plannedDeps` edge the code now references into `deps` with a
-  grep-matched `depEvidence` cite, keep unreferenced planned edges planned,
-  recompute layers, re-render. Re-derive `status` per §Status lifecycle. Other
-  entries are preserved untouched. An argument matching both a TDD feature and
-  a module id → AskUserQuestion.
-- `--render-only` — regenerate `<matrixRoot>/index.html` from the existing
-  `<matrixRoot>/modules.json` without recomputing the graph.
-- `--verify` — read-only: recompute layers from specs + code import/using
-  graph and report drift against modules.json; write nothing.
+- `<tdd-feature>` — restrict the update to modules of one TDD; omit = full pass over all
+  `<tddRoot>/**/tdd.md`.
+- `<module-id>` — restrict the update to ONE modules.json entry: re-derive that module's
+  `deps` from the code under its `paths`, promote every `plannedDeps` edge the code now
+  references into `deps` with a grep-matched `depEvidence` cite, keep unreferenced planned
+  edges planned, recompute layers. Other entries are preserved untouched. Used by
+  `/ndv-implement` Phase 3 and register-fix của `/ndv-audit-fix`. An argument matching both a
+  TDD feature and a module id → AskUserQuestion.
+- `--verify` — read-only drift report, write nothing:
+  `python3 .claude/ndvkit/skills/ndv-sync/scripts/ndv_check.py --checks deps` (+
+  `--refresh-status` không `--write` = status drift). Stack script không hỗ trợ / không có
+  Python → spawn `module-architect` với chỉ thị read-only.
 
-## Phase 1 — Inputs
+Chỉ cần refresh `status` hoặc re-render `modules.md` → KHÔNG chạy skill này, gọi thẳng script
+(§Status lifecycle).
 
-1. Read `<matrixRoot>/modules.json` if present (update mode — preserve
-   entries not in scope).
-2. Read the TDD(s) in scope, the host's module convention rules, and the
-   cross-module contract/dependency docs (`contractsDoc`, `<specsRoot>/**`)
-   for declared dependencies.
+## Phase 1 — Delegate to module-architect
 
-## Phase 2 — Delegate to module-architect agent
+Spawn `module-architect` (Task tool) với: scope (full / `<tdd-feature>` / `<module-id>`) +
+path TDD trong scope. Agent tự đọc modules.json, TDD, contract docs, code — orchestrator
+không đọc trước các file đó.
 
-Spawn `module-architect` (Task tool) with scope + the layering rules reminder:
-- Layer 0 = foundation (no project-module deps); layer(M) = 1 + max(layer(deps)).
-- Cycle = blocking finding (propose interface split, do not auto-resolve).
-- Verify declared deps against actual import/using graph under `codeRoots`;
-  drift is a finding.
+## Phase 2 — Validate, refresh, report
 
-Agent writes `<matrixRoot>/modules.json` and regenerates
-`<matrixRoot>/index.html` from `<templates>/module-matrix-template.html`
-(inject modules.json into `<script id="module-data" type="application/json">`;
-the template is self-contained inline-CSS light theme — no external assets,
-no CDN).
-
-## Phase 3 — Validate & report
-
-1. Sanity-check the JSON parses; every `deps[]` and `plannedDeps[]` entry exists as a
-   module id; `depEvidence` keys equal `deps`, `plannedDepEvidence` keys equal
-   `plannedDeps`. `rootRel` khớp độ sâu của `matrixRoot` (`docs/ModuleMatrix` → `../../`).
-   `status` mỗi entry khớp §Status lifecycle.
-2. Check each layer-N module only references layers < N, over `deps ∪ plannedDeps`.
-3. Report to the user: layer table (layer → modules), new/changed modules,
-   cycle or drift findings (Finding/Evidence/Impact), and the file paths.
-   Suggest opening `<matrixRoot>/index.html` in a browser.
+1. `python3 .claude/ndvkit/skills/ndv-sync/scripts/ndv_check.py --refresh-status <ids agent trả về> --write`
+   (Windows: `python` / `py -3`) — derive `status` + sinh lại `<matrixRoot>/modules.md`.
+   Script exit 2 = modules.json không parse / id lạ → feed lỗi về agent (resume).
+2. Sanity-check: every `deps[]`/`plannedDeps[]` entry exists as a module id; `depEvidence`
+   keys equal `deps`, `plannedDepEvidence` keys equal `plannedDeps`; each layer-N module only
+   references layers < N over `deps ∪ plannedDeps`; `paths` không chồng nhau.
+3. Report: layer table (layer → modules), new/changed modules, cycle or drift findings
+   (Finding/Evidence/Impact), status changes script in ra, paths (`modules.json`, `modules.md`).
 
 ## Status lifecycle (SoT cho field `status` trong modules.json)
 
-`status` là giá trị DERIVE, không nhận từ prompt/TDD. Chỉ skill này (qua `module-architect`)
-ghi field này; skill khác cần refresh thì invoke `/ndv-module-matrix <MODULE>`. Đánh giá theo
-thứ tự, lấy dòng đầu khớp:
+`status` là giá trị DERIVE từ artifact trên disk — không nhận từ prompt/TDD, agent không tự
+suy. Đánh giá theo thứ tự, lấy dòng đầu khớp:
 
 | status | Điều kiện |
 |---|---|
-| `implemented` | có source file dưới `path` ∧ report `<auditReportRoot>/<MODULE>-*.md` mới nhất (frontmatter `job: module-audit`) không có verdict `FAIL` (chưa có report = đạt) |
+| `implemented` | có source file dưới `paths` ∧ `<specsRoot>/<MODULE>/tasks.md` không còn task `- [ ]` (không có tasks.md = đạt — module brownfield) ∧ report module mới nhất `<auditReportRoot>/<MODULE>-*.md` không có verdict `FAIL` (chưa có report = đạt) |
 | `planned` | `<specsRoot>/<MODULE>/plan.md` có frontmatter `approved: true` |
 | `specced` | `<specsRoot>/<MODULE>/requirement.md` tồn tại |
 | `proposed` | còn lại |
 
-Điểm refresh trong pipeline: `/ndv-tdd-to-spec` (→ `specced`), `/ndv-plan` on Approve
-(→ `planned`), `/ndv-implement` Phase 3 (→ `implemented`), `/ndv-audit-module` on `FAIL`
-(rời `implemented`), `/ndv-onboard` Option 2/3.
+Hệ quả: module đã có code đang được mở rộng (tasks.md còn task mở) rơi về `planned`; mọi task
+`[x]` mới trở lại `implemented`.
+
+**Cách refresh** (mọi skill, không spawn agent, không invoke skill này):
+`python3 .claude/ndvkit/skills/ndv-sync/scripts/ndv_check.py --refresh-status <MODULE> --write`.
+Host không có Python → orchestrator tự đánh giá bảng trên bằng Glob/Grep rồi Edit đúng field
+`status` của entry (modules.md khi đó không được sinh lại — ghi rõ trong report).
+
+**Điểm refresh**: `/ndv-tdd-to-spec` (sau khi ghi requirement), `/ndv-plan` on Approve,
+`/ndv-tasks` on Approve, `/ndv-implement` Phase 3, `/ndv-audit-code module` (mọi verdict),
+`/ndv-onboard` matrix / reverse-doc.
 
 ## Update triggers (when to re-run this skill)
 
 - New TDD or TDD dependency section changed → full pass.
-- New module folder appears under `codeRoots` without a modules.json entry →
-  full pass (status derive theo §Status lifecycle).
-- Style/rendering tweak → `--render-only`.
+- New module folder appears under `codeRoots` without a modules.json entry → full pass.
+- `ndv_check.py --checks deps` báo `dep-undeclared` / `dep-declared-not-in-code` → `<module-id>`.

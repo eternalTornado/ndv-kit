@@ -9,10 +9,13 @@ updated: <yyyy-mm-dd>
 
 # Plan — <MODULE>
 
-> Technical design HOW cho specify.md, tuân module/coding convention trong
-> `.claude/rules/**` của project host. Design decision không bị spec ràng buộc:
-> chọn MỘT phương án + justify kèm cite. Không timeline/estimate.
+> Technical design HOW cho specify.md, tuân module/coding convention của rule source (host
+> `<rulesRoot>` ưu tiên, fallback `<kitRulesRoot>`) — cite rule bằng đúng path của file đã mở
+> (R1). Design decision không bị spec ràng buộc: chọn MỘT phương án + justify kèm cite. Không
+> timeline/estimate.
 > Tham chiếu component/method có sẵn → cite symbol `<path>::<Type>.<Member>` (R3); mọi anchor code trong plan phải do người viết plan mở file trong session, không kế thừa từ specify/TDD.
+> Code SẼ BỊ THAY bởi plan này: mô tả ở dạng `trước implement: …` + cite symbol của member chứa
+> nó — không `:<line>`, không "currently"/"hiện tại" (câu đó sai ngay sau `/ndv-implement`).
 
 ## 1. Module skeleton
 
@@ -34,7 +37,7 @@ updated: <yyyy-mm-dd>
 
 ### <MODULE>-FR-001
 
-<Sequence: component nào gọi gì, event nào bắn (naming theo host convention), state đổi ở đâu. Component/method có sẵn → `<path>::<Type>.<Member>`; component mới → tên + folder theo skeleton §1.>
+<Sequence: component nào gọi gì, event nào bắn (naming theo host convention), state đổi ở đâu. Component/method có sẵn → `<path>::<Type>.<Member>`; component mới → tên + folder theo skeleton §1. Component/method sẽ bị thay → `trước implement: …` + symbol (xem header).>
 
 ## 4. Dependency wiring
 
@@ -52,7 +55,7 @@ Không có UI → `N/A`.>
 
 ## 7. Risks & pitfalls
 
-| Pitfall (từ host pitfalls/rules doc) | Áp dụng thế nào | Thiết kế né ra sao |
+| Pitfall (rule/pitfalls doc — cite path file đã mở) | Áp dụng thế nào (code giữ/mở rộng → cite symbol; code sẽ bị thay → `trước implement: …` + symbol) | Thiết kế né ra sao |
 |---|---|---|
 
 ## 8. FR → design element mapping

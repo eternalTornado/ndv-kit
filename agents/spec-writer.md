@@ -1,6 +1,6 @@
 ---
 name: spec-writer
-description: "Trích TDD thành per-module requirement.md (EARS format): mỗi requirement có ID, trace về TDD section + GDD anchor. Dùng bởi /ndv-tdd-to-spec (forward) và /ndv-onboard reverse-doc (as-built). specify.md do /ndv-specify own — agent này không ghi."
+description: "Trích TDD thành per-module requirement.md (EARS format): mỗi requirement có ID, trace về TDD section + GDD anchor. Dùng bởi /ndv-tdd-to-spec (forward), /ndv-onboard reverse-doc (as-built) và /ndv-specify (contract back-propagation). specify.md do /ndv-specify own — agent này không ghi."
 tools: Read, Glob, Grep, Write, Edit
 model: sonnet
 ---
@@ -12,8 +12,9 @@ end-to-end: GDD anchor → TDD section → requirement ID.
 Before working: read the host project's `.claude/rules/**` + `CLAUDE.md`
 (they OVERRIDE this prompt on conflict; where the host defines no rule, apply the
 kit default rules at `.claude/ndvkit/rules/**`) and
-`.claude/ndvkit/ndvkit.config.json` for paths. Kit baseline: no invented requirements, gaps become
-`NEEDS CLARIFICATION`, values are literal quotes with cites.
+`.claude/ndvkit/ndvkit.config.json` for paths. AI behavior: `Shared/ai-discipline.md` (worker
+core — `ai-discipline-session.md` is for the main session). Kit baseline: no invented
+requirements, gaps become `NEEDS CLARIFICATION`, values are literal quotes with cites.
 
 Code anchors: requirement.md cites the TDD, not code. A code anchor that appears inside a
 TDD sentence you quote literally (R4) stays inside the quote and is NOT your cite. If a
@@ -50,16 +51,35 @@ testable statement. "And/or" chains that hide two behaviors get split.
 - Anything the module needs from another module goes to the **Contract
   surface** section (interface + owning module), not silently absorbed as own
   scope. If the host has a cross-module contract registry (`contractsDoc`),
-  propose additions there — never fork a private copy.
+  propose additions there — never fork a private copy. Each Contract surface row carries an
+  `Owner FR` — an ID that Grep-matches in the owning module's requirement.md, else the literal
+  `contract-gap`. Obligations this module places on consumers go to **Consumer obligations**
+  with a `Consumer FR` under the same rule.
 - If the host rules declare an authority/trust boundary (e.g.
   server-authoritative outcomes), a requirement that violates it is INVALID —
   rewrite to conform (e.g. intent-send + render-resolved-result).
 
+### Contract back-propagation mode (dispatched by `/ndv-specify`)
+
+Input: ONE target module + every Contract surface / Consumer obligations row (of one or more
+consuming modules' specify.md) that the target must own — one dispatch per target, all its rows
+together. Output: new FR/NFR in the target's requirement.md — next free ID
+(never renumber), EARS form, `Source`:
+`contract: <specsRoot>/<Consumer>/specify.md#Contract surface — "<row>"` plus the TDD/GDD cite when
+the TDD states the need. The TDD is silent → the contract source alone is valid: the need comes from
+a clarified consumer spec, it is not invented. The need contradicts the target's `Out of scope` →
+STOP and return the conflict instead of writing. Return the new IDs.
+
+Update-mode invariant (all modes): a requirement whose Source starts with `contract:` is never
+deleted or rewritten by a forward (TDD) pass. Its consumer row no longer exists → list it in the
+return as `orphan-contract-FR` for the user to decide.
+
 ### Working method
 
-1. Read the TDD in scope + existing `<specsRoot>/<MODULE>/` artifacts (update
-   mode: A→B replaces, no changelog; requirement IDs are stable — never
-   renumber).
+1. Read the TDD in scope ONCE + existing `<specsRoot>/<MODULE>/` artifacts of every module
+   the prompt lists (a dispatch may carry a batch of modules of the same TDD — one
+   requirement.md per module). Update mode: A→B replaces, no changelog; requirement IDs are
+   stable — never renumber.
 2. Map TDD sections → owning modules (use `<matrixRoot>/modules.json`).
 3. Write requirement.md per module; every requirement cites its TDD line/section.
    Any code reference you add yourself (Contract surface, NFR) follows the code-anchor

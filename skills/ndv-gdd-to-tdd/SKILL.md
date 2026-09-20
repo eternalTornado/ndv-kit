@@ -10,9 +10,9 @@ When this skill is invoked:
 
 ## Phase 0 — Config & rules
 
-Read `.claude/ndvkit/ndvkit.config.json` (`gddRoot`, `tddRoot`, `templates`).
-Rule source: host `.claude/rules/**` + `CLAUDE.md` nếu có; domain nào host không
-define → dùng kit default rules tại `.claude/ndvkit/rules/**`. Host thắng khi mâu thuẫn.
+Read `.claude/ndvkit/ndvkit.config.json` (`gddRoot`, `tddRoot`, `templates`). Rule source +
+precedence do agent `tdd-writer` tự resolve (host `.claude/rules/**` > kit
+`.claude/ndvkit/rules/**`).
 
 ## Parse arguments
 
@@ -24,13 +24,15 @@ define → dùng kit default rules tại `.claude/ndvkit/rules/**`. Host thắng
 
 ## Phase 1 — Scope & mode
 
-1. Read the resolved GDD file(s). Fail with a clear message if `<gddRoot>` is
-   missing or the file does not exist — do not invent a GDD.
-2. Derive `<Feature>` id: PascalCase domain name; if the host rules define a
-   feature-id/glossary scheme, follow it.
+1. Resolve the GDD path(s) by Glob. Fail with a clear message if `<gddRoot>` is missing or
+   the file does not exist — do not invent a GDD. Do NOT read the GDD body here:
+   `tdd-writer` reads it; reading it twice buys nothing.
+2. Derive `<Feature>` id: PascalCase domain name from the GDD file/folder name; if the host
+   rules define a feature-id/glossary scheme, follow it.
 3. Check `<tddRoot>/<Feature>/tdd.md`:
-   - exists → **update mode**: diff-driven — only sections whose GDD source
-     changed are rewritten (A→B: delete A write B, no changelog).
+   - exists → **update mode**: the agent re-checks every literal quote + GDD cite of the TDD
+     against the GDD and rewrites only sections whose source changed (A→B: delete A write B,
+     no changelog).
    - absent → **create mode**.
 
 ## Phase 2 — Delegate to tdd-writer agent
@@ -39,21 +41,19 @@ Spawn the `tdd-writer` agent (Task tool) with:
 - the GDD path(s) in scope,
 - target `<tddRoot>/<Feature>/tdd.md`,
 - template `<templates>/tdd-template.md`,
-- mode (create/update) and, in update mode, the changed GDD sections.
-
-The agent extracts ONLY technical concerns (data, formulas literal-quoted,
-state, flows, contracts, edge cases) and marks gaps `NEEDS CLARIFICATION`.
+- mode (create/update).
 
 ## Phase 3 — Review gate
 
-1. Read the produced TDD; verify template sections are all present and every
-   constant/formula carries a GDD cite (spot-check 3 values against source).
-2. Present to the user: TDD path, section summary, and the full
+1. Verify without re-reading the whole TDD: Grep `^## ` in the TDD = the template's section
+   list; Grep 3 literal values from TDD §3 in the cited GDD file (each must match). A miss →
+   resume the same agent instance with the miss.
+2. Present to the user: TDD path, the agent's section summary, and the full
    `NEEDS CLARIFICATION` list.
-3. If clarifications exist, AskUserQuestion to resolve them now (answers are
-   written into the TDD, replacing the markers) or defer (markers stay; the
-   TDD is not ready for `/ndv-tdd-to-spec` until zero markers remain in the
-   sections being specced).
+3. If clarifications exist, AskUserQuestion to resolve them now — answers are written into
+   the TDD, replacing the markers, kèm cite `decision: <yyyy-mm-dd> — "<answer>"` (R3; GDD vẫn
+   là nơi Design cập nhật sau) — or defer (markers stay; the TDD is not ready for
+   `/ndv-tdd-to-spec` until zero markers remain in the sections being specced).
 
 ## Phase 4 — Downstream reminder
 

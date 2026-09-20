@@ -7,7 +7,7 @@
   `<matrixRoot>/modules.json`) for project structure và dependencies.
 - Read the naming conventions và coding style của stack đang làm.
 - When working on a task or implementing, read the pitfalls document (nếu có) to avoid common mistakes.
-- Ngoại lệ: brownfield discovery (`/ndv-onboard` DISCOVER / reverse-doc) khi project chưa có register — code là observed source, đọc code trước là bản chất của bước đó.
+- Ngoại lệ: brownfield discovery (`/ndv-onboard` matrix — `module-architect` Mode brownfield — và reverse-doc) khi project chưa có register — code là observed source, đọc code trước là bản chất của bước đó.
 
 ## Testing policy
 

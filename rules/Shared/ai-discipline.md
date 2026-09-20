@@ -1,8 +1,13 @@
-# AI Discipline
+# AI Discipline — worker core (R1–R5, R7)
 
 > **Canonical SSoT** cho AI behavior rules trong project áp dụng bộ này. Mọi rule file /
 > skill khác **cite-back** về đây thay vì restate. NON-NEGOTIABLE, áp dụng cho mọi AI agent
-> (main session, sub-agents, scheduled agents). Skill cite `§R-NN` được hiểu là cite về file này.
+> (main session, sub-agents, scheduled agents). Skill cite `§R-NN` được hiểu là cite về bộ này.
+>
+> File này là phần MỌI worker (sub-agent ghi artifact / code / report) phải đọc. R6, R8, R9,
+> R10 + Exception / Enforcement / Governance sống ở
+> [ai-discipline-session.md](ai-discipline-session.md) — main session / orchestrator đọc,
+> worker không cần.
 
 ---
 
@@ -15,14 +20,16 @@ Không trả lời từ memory.
 **Format cite**: doc/artifact (GDD, TDD, spec, rules) → `<path>#<section>` hoặc `<path>:<line>`;
 code (file dưới `codeRoots`) → `<path>::<Type>.<Member>` (symbol-based, mặc định) — `:<line>`
 chỉ đi kèm SAU symbol khi cần chỉ đúng một dòng (`<path>::<Type>.<Member>:<line>`), không bao
-giờ đứng một mình cho code; web → kèm `#anchor` hoặc literal quote ≤2 câu. Symbol phải grep
-match trong file tại thời điểm ghi.
+giờ đứng một mình cho code; rule file → đúng đường dẫn của file đã mở, ưu tiên `#<section>` hơn
+`:<line>` (`<kitRulesRoot>/<Nhóm>/<file>.md#<section>` cho kit default rules; `<rulesRoot>/…`
+chỉ khi file thật sự nằm đó) — tên ngắn `Unity/…`, `Shared/…`, `Server/…` trong rules là đường
+dẫn tương đối so với root của bộ rules chứa nó, không ghép với `<rulesRoot>`; web → kèm `#anchor`
+hoặc literal quote ≤2 câu. Symbol phải grep match trong file tại thời điểm ghi.
 
-**Audit Evidence carve-out**: report audit (`/ndv-audit-module`, `/ndv-audit-code`,
-`/ndv-audit-standards`) là snapshot tại một commit (frontmatter `git`). Evidence dùng
-`<path>::<Type>.<Member>:<line>` cho file có symbol; `<path>:<line>` + literal quote cho file
-không có symbol (markup, stylesheet, data, asset). Fixer verify bằng literal quote, không bằng
-line — quote lệch → `stale`.
+**Audit Evidence carve-out**: report của `/ndv-audit-code` là snapshot tại một commit
+(frontmatter `git`). Evidence dùng `<path>::<Type>.<Member>:<line>` cho file có symbol;
+`<path>:<line>` + literal quote cho file không có symbol (markup, stylesheet, data, asset).
+Fixer verify bằng literal quote, không bằng line — quote lệch → `stale`.
 
 **BANNED**:
 
@@ -62,6 +69,12 @@ Cite vào code: symbol phải grep-match trong file tại thời điểm ghi art
 thừa từ artifact thượng nguồn (TDD, requirement, modules.json, audit report) mà chưa mở lại
 file trong session này KHÔNG được ghi làm cite của artifact hiện tại — đổi sang symbol đã
 verify, hoặc bỏ anchor và giữ claim ở dạng không cite code.
+
+**Quyết định của user / owner** (câu trả lời AskUserQuestion khi resolve `NEEDS CLARIFICATION`,
+triage, chọn phương án) là source hợp lệ khi artifact thượng nguồn im lặng:
+`decision: <yyyy-mm-dd> — "<literal answer ≤2 câu>"`. Form này không dùng để ghi đè literal đã
+có ở GDD/TDD — câu trả lời mâu thuẫn thượng nguồn thì sửa thượng nguồn trước, artifact hạ
+nguồn cite thượng nguồn.
 
 **Cite content, không cite topic.**
 
@@ -105,31 +118,15 @@ yêu cầu hoặc source được cite inline):
 - Effort / cost / risk score tự gán
 
 **Banned phrase**: `~Xmin`, `approximately`, `should take`, `khoảng X phút`, `Top-3`,
-`Tier-1/2/3` (nếu không cite skill define), `vài`, `nhiều`, `khoảng`, `chừng`, `hơi`, `khá`,
-`tương đối` (ambiguous quantifier không kèm số cụ thể).
+`Tier-1/2/3` (nếu không cite skill define).
+
+**Banned ambiguous quantifier** (SoT — trừ khi kèm số cụ thể + cite): `vài`, `nhiều`,
+`khoảng`, `chừng`, `hơi`, `khá`, `tương đối`, `một số` — thay bằng số cụ thể + cite, hoặc
+`N/A — không đo được trong session này`.
 
 **OK**: Observed duration từ tool output cite literal; số cite từ source.
 
 Conversational recommendation trong chat OK; ghi vào artifact file chỉ khi user explicit yêu cầu lưu.
-
----
-
-## R6 — Follow chosen workflow, direct answer
-
-User chốt workflow → tuân thủ, không tự đề xuất skip / alternative.
-
-Hỏi → pick MỘT phương án + execute + cite, không "Option A vs B vs C" trừ khi:
-
-- User yêu cầu compare
-- Quyết định irreversible / breaking → dùng AskUserQuestion với 2-3 option
-
-AI scope:
-
-- AI chỉ implement task + file area được giao
-- Không tự nghĩ gameplay rule
-- Không đổi balance constant
-- Không refactor ngoài scope
-- Không mở rộng change nếu không có source + human approval
 
 ---
 
@@ -142,8 +139,8 @@ Mọi finding trong research / audit / analysis artifact phải có 3 phần:
 3. **Impact**: 1 câu giải thích relevance / hậu quả
 
 **Severity** (tập đóng, SoT tại đây): `blocker · critical · high · medium · low · info`.
-Guide lens-specific (điều kiện nào rơi vào mức nào) sống trong agent audit tương ứng; không
-mint mức mới, không viết hoa biến thể.
+Guide (điều kiện nào rơi vào mức nào) sống trong agent `code-auditor`; không mint mức mới,
+không viết hoa biến thể.
 
 **BANNED**:
 
@@ -152,112 +149,3 @@ mint mức mới, không viết hoa biến thể.
 - Web cite chỉ root URL
 - Summary "X có vấn đề Y" không cite finding cụ thể
 - "Có thể có vấn đề về performance" không cite benchmark / line
-
----
-
-## R8 — Proposals: grounded, holistic, concise
-
-Mọi đề xuất (artifact hoặc chat) MUST:
-
-1. **Grounded**: research (web / codebase / GDD) trước, KHÔNG gut-feel
-2. **Cite**: mỗi point ≥1 source
-3. **Holistic**: tổng thể + trade-off, không mảnh rời
-4. **Concise**: proposal + cite + scope; cấm bullet "for completeness"
-5. **Anti ad-hoc**: chưa research kịp → nói "cần research thêm về X trước khi propose"
-
-**Format**:
-
-```text
-Đề xuất: <action>
-Source: <path#section hoặc path::Symbol / URL + quote ≤2 câu>
-Trade-off: <≤1 câu impact / cost>
-```
-
----
-
-## R9 — Single Source of Truth: cite-back, never duplicate
-
-Mỗi fact / value / taxonomy / threshold / decision / rule có **đúng 1 canonical location**.
-Cite-back (`[name](path)` hoặc `<path>#<section>`), KHÔNG restate body.
-
-**Canonical location index** — mỗi project MAINTAIN một bảng map content → SoT trong host
-rules. Khi host chưa có, default của kit:
-
-| Content | Canonical SoT |
-|---|---|
-| AI behavior rules (R1–R10 này) | file này |
-| Core principles, governance, writing | `Shared/constitution.md` |
-| Id allocation invariants | `Shared/id-plan.md` (giá trị cụ thể: host rules) |
-| Naming per stack | stack rules (`Unity/conventions.md`, `Server/server.md`…) |
-| Trust boundary (authority) | `Unity/security.md` |
-| Module dependency hiện trạng | `<matrixRoot>/modules.json` (register, pipeline sinh) |
-| Module contract per module | `<specsRoot>/<MODULE>/` artifacts |
-| GDD content (gameplay rules, balance) | `<gddRoot>/**` (Design managed) |
-| Severity taxonomy (audit) | file này §R7 |
-| Glossary (canonical term per domain) | host rules |
-| Amendment history của rules kit | `CHANGELOG.md` |
-
-**Allowed exceptions** (limited duplication):
-
-- Literal quote ≤2 câu (R4 pattern)
-- Header summary kèm pointer + ≤8 line digest
-- Cross-file index (file name + 1-line description)
-- Frontmatter redundancy cần cho artifact tự chứa
-
-**BANNED**: restate entire taxonomy / threshold / enum ở >1 file; re-define same convention
-với wording khác; paraphrase canonical rule body.
-
-### R9.1 — Body vs history separation
-
-**Body** của artifact = current state. **History / lifecycle** sống ở single sources:
-frontmatter `created`/`updated`, STATUS/changelog doc per system (nếu project có), git log;
-rules của kit: [CHANGELOG.md](../CHANGELOG.md).
-
-**BANNED inline body decoration**: `chốt <date>`, `RESOLVED <date>`, `patched <date>`,
-`(Recommended)`, "Đã chốt", "Đã apply" trong body text.
-
-**Allowed**: gate confirm checkbox với date (event record), frontmatter date field,
-changelog entry theo format R7, factual evidence cite.
-
----
-
-## R10 — Enterprise register
-
-Mọi AI output (assistant message + doc body + commit msg + PR description + skill output)
-dùng formal register. Không slang / casual.
-
-**BANNED slang / casual**: `bắn agent`/`phang code` (→ `invoke`/`implement`), `ngon`/`chạy
-luôn không` (→ `acceptable`/`proceed?`), `Just/Simply/Obviously` (xóa hoặc cite lý do),
-`Yeah/Nope` (→ `Yes/No`), `gut-feel`/`hên xui` (→ `untested`/`unverified`).
-
-**BANNED ambiguous quantifier** (trừ khi cite số cụ thể): `vài`, `nhiều`, `khoảng`, `chừng`,
-`hơi`, `khá`, `tương đối`, `một số` — thay bằng số cụ thể + cite, hoặc
-`N/A — không đo được trong session này`.
-
-Ngôn ngữ tự nhiên của team OK (technical term giữ English); chỉ ban slang/casual register.
-
----
-
-## Exception — Justified Deviation
-
-Nếu MUST vi phạm R1–R10, artifact phải có section `## Complexity Justification` gồm:
-
-1. Rule nào vi phạm
-2. Lý do (cite source bắt buộc)
-3. Scope + thời lượng
-4. Plan return về compliance
-
-Không có section này = vi phạm.
-
----
-
-## Enforcement
-
-- Audit skills của kit (`/ndv-audit-module`, `/ndv-audit-code`, `/ndv-audit-standards`) và audit skill riêng của host (nếu có) flag vi
-  phạm theo format R7 + severity.
-- Human review: code review flag vi phạm; AI không self-approve.
-
-## Governance
-
-Amendment cho R1–R10 theo [constitution.md](constitution.md): written rationale + migration
-note, ghi tại [CHANGELOG.md](../CHANGELOG.md).

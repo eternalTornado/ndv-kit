@@ -1,7 +1,7 @@
 ---
 name: ndv-audit-code
-description: "Code-audit toàn estate against rules (host .claude/rules ưu tiên, fallback kit rules) + specs — grade PROGRESS (FR status vs code), CONTRACT (API/parity/content-parity, nửa tier này), QUALITY (metrics), DUPLICATION. Protocol finder→verifier độc lập (refuted không biến mất im lặng), ENUMERATE before GRADE, prior-report re-verify. Output findings (Severity/Evidence/Impact/Fix) dưới <auditReportRoot>/code/. READ-ONLY trên project files. Song song với /ndv-audit-standards (UI reskin/naming); khác /ndv-audit-module (một module vs spec của nó)."
-argument-hint: "[current [<path>] | changes vs-<base>]"
+description: "Bước 5 pipeline ndvkit — skill audit DUY NHẤT của kit: grade code against bộ chuẩn trong rules (host .claude/rules ưu tiên, fallback kit rules) + spec. 3 scope: `module <id>` (một module vs spec của nó + rules, verdict PASS/FAIL nuôi status trong modules.json), `current [<path>]` (estate sweep), `changes vs-<base>` (diff branch). Protocol finder→verifier độc lập qua agent code-auditor. Output MỘT file report .md dưới <auditReportRoot>. READ-ONLY trên project files. Dùng sau /ndv-implement, trước merge, hoặc định kỳ."
+argument-hint: "[module <module-id>... | module --all | current [<path>] | changes vs-<base>]"
 user-invocable: true
 allowed-tools: Read, Grep, Glob, Bash, Write, Task, AskUserQuestion, TodoWrite
 ---
@@ -10,137 +10,106 @@ When this skill is invoked:
 
 ## User input
 
-Accepted forms:
+- `module <module-id>...` — audit từng module vs spec của nó + rules; `module --all` = mọi
+  entry modules.json có `status: "implemented"`.
+- `current [<path>]` — sweep toàn code estate (hoặc một subtree).
+- `changes vs-<base>` — files changed vs `<base>` (`git diff <base>...HEAD --name-only`),
+  COMMITTED-only: `git status --porcelain` không rỗng → báo user commit rồi mới audit + STOP.
+- Không argument → AskUserQuestion hỏi scope. KHÔNG tự chọn.
 
-- `/ndv-audit-code current` — audit toàn bộ code estate (full sweep, parallel FINDER agents).
-- `/ndv-audit-code current <path>` — full-sweep giới hạn một subtree.
-- `/ndv-audit-code changes vs-<base>` — audit files changed trên branch vs `<base>`
-  (`git diff <base>...HEAD --name-only`), COMMITTED-only: `git status --porcelain` không
-  rỗng → báo user commit hết rồi mới audit + STOP.
-- Không có argument → AskUserQuestion hỏi mode. KHÔNG tự chọn.
+## Non-negotiables (phần của orchestrator)
 
-Đây là code-audit lens (progress · contract · quality · parity · duplication). UI reskin /
-UI naming / token-hygiene KHÔNG thuộc skill này — đó là `/ndv-audit-standards`. Whole-estate
-review chạy CẢ HAI.
+- **Read-only trên project files.** File duy nhất được ghi là report `.md` (Step 5). Không fix
+  gì — fix + triage là việc của `/ndv-audit-fix`.
+- **Protocol sống trong agent `code-auditor`** (evidence format, ENUMERATE before GRADE,
+  exhaustive, property-not-proxy, severity guide, carve-out, tier scope). Prompt spawn chỉ
+  mang: vai · lens · rule/spec files · scope (· candidate set) — không restate protocol.
+- **Finder → Verifier tách instance.** Mọi finding vào report đã qua VERIFIER độc lập;
+  REFUTED vào `## Refuted` kèm refute_reason — không drop im lặng. Tally: raised = shipped +
+  corrected + refuted.
+- **Orchestrator không đóng vai FINDER và không tự re-verify finding** — chỉ merge, dedupe,
+  đánh id, apply verdict, ghi report. Đọc lại evidence là việc của VERIFIER.
+- **Severity**: tập đóng R7 (`Shared/ai-discipline.md` §R7). Không mint mới.
+- **Rule precedence**: host `.claude/rules/**` + `CLAUDE.md` > kit rules
+  `.claude/ndvkit/rules/**`; trong kit `Shared/` > stack. Priority arbitrate được → audit theo
+  rule thắng, cite nó; chỉ vào `## Rule conflicts — needs decision` khi priority KHÔNG arbitrate.
 
-## Non-negotiables (áp dụng mọi step)
+## Step 0 — Config + resolve lens
 
-- **Read-only trên project files.** File duy nhất được ghi là report artifacts dưới
-  `<auditReportRoot>/code/<run>/`. Không fix gì — fix là việc của `/ndv-audit-fix`
-  (hoặc host fix-flow nếu có).
-- **Finder → Verifier, tách instance + convergence loop.** Candidate từ FINDER phải qua
-  VERIFIER instance ĐỘC LẬP (agent `code-auditor` vai VERIFIER) re-open tại `path:line` và
-  cố refute trước khi vào report. Refuted vào `## Refuted` kèm refute_reason — KHÔNG BAO GIỜ
-  drop im lặng. Verify chạy LOOP tới khi finding-set đồng nhất (round không còn
-  correction/new), bound 3 round. Tally: raised = shipped + corrected + refuted.
-- **Verify cái GIỮ, không chỉ cái ĐỔI.** Mỗi dòng `## Compliant` và mỗi count/claim audit
-  giữ nguyên PHẢI mang formula re-runnable và được verifier re-run độc lập — "compliant"
-  không bao giờ assert mà không có adversary.
-- **Detection-method independence.** Verifier + regression re-check dùng phương pháp phát
-  hiện KHÁC finder (enumerate-then-filter / semantic re-read) — pattern mù chạy lại y nguyên
-  sẽ mù hai lần.
-- **Property, không proxy.** Count/claim đo ĐÚNG property đang assert, không đo cái dễ-grep
-  thay thế; cái khó grep (dead code, live-path binding) bắt buộc kiểm.
-- **ENUMERATE before GRADE.** Denominator cố định per axis bằng formula re-runnable →
-  `## Coverage` (modules từ module register/`<matrixRoot>/modules.json` ∪ specced-but-absent;
-  endpoints = union route literals; source files trong scope; FR từ `<specsRoot>` specs).
-  `covered + na == total`, hụt → caveat theo tên.
-- **Severity taxonomy đóng**: `blocker · critical · high · medium · low · info`
-  (guide trong agent `code-auditor`). Không mint mới.
-- **Finding record đầy đủ**: Severity + Finding (1 câu) + Evidence (`path:line` + literal
-  quote ≤2 dòng, hoặc exact count + FULL hit list) + Impact (rule/spec file + section) +
-  Fix (before → after) — Fix bắt buộc cho severity ≥ low. `path:line` trong file này là
-  viết tắt cho format R1 audit carve-out: `<path>::<Type>.<Member>:<line>` với file có
-  symbol, `<path>:<line>` với file không có symbol (markup, stylesheet, data, asset); luôn
-  kèm literal quote.
-- **Exhaustive, không representative.** Finding pattern list MỌI occurrence project-wide.
-  Parity-critical domain → sampling FORBIDDEN.
-- **Metric có formula** — không formula → OMIT.
-- **Tier scope.** Finding cross-tier chỉ verify được nửa repo này — ghi rõ "other tier
-  unverifiable from this repo". Spec↔code conflict là FINDING, không nghiêng về spec.
-- **Grep discipline.** Exclude third-party + engine-generated + build-artifact folders theo
-  repo-hygiene host. Không BRE alternation `\|`.
-- **Rule precedence**: host `.claude/rules/**`+`CLAUDE.md` > kit rules
-  `.claude/ndvkit/rules/**`; trong kit `Shared/` > stack. Priority arbitrate được → audit
-  theo rule thắng, cite nó. Chỉ vào `## Rule conflicts — needs decision` khi priority KHÔNG
-  arbitrate.
+Read `.claude/ndvkit/ndvkit.config.json` (`specsRoot`, `matrixRoot`, `auditReportRoot`,
+`codeRoots`, `contractsDoc`, `rulesRoot`, `kitRulesRoot`). Resolve rule file per lens (host
+trước, kit fallback) — chỉ truyền PATH cho agent, orchestrator không đọc body rule:
 
-## Step 0 — Load rules + specs
+| Lens | Rule/spec files | Active khi scope có |
+|---|---|---|
+| `patterns` | constitution (Shared + stack) · module-constraints · Shared coding-style/security · known-pitfalls | source code |
+| `naming` | conventions + stack coding-style | source code / asset |
+| `data` | id-plan (+ host id table) · asset-structure | content asset, data table, id literal |
+| `spec` | `<specsRoot>/<MODULE>/` (specify.md, fallback requirement.md) · `contractsDoc` · `<matrixRoot>/modules.json` · security (trust boundary) | module có spec artifact / route literal |
+| `ui` | ui-theming · naming-ui-toolkit · known-pitfalls | markup / stylesheet / UI code chứa bind helper |
 
-Đọc `<auditReportRoot>/audit-learning.md` TRƯỚC TIÊN nếu có (cross-run learning log) — áp
-dụng mọi rule-for-next-run; surface finding mới/recurring → append `L-NN` (`pattern · root
-cause · rule-for-next-run · evidence`).
+Lens không có file nào trong scope → không spawn cho lens đó; ghi `N/A` vào `## Coverage`.
 
-Resolve rule set per lens (host trước, kit fallback):
+## Step 1 — Scope + spawn FINDER
 
-| Lens | Rule/spec files govern |
-|---|---|
-| constitution/patterns | constitution + module-constraints (module shape, hot-path budget, hardcoded content) |
-| naming | conventions (+ stack coding-style) |
-| id | id-plan (kit invariants + host id table) |
-| asset | asset-structure |
-| contract/progress | `<specsRoot>/<MODULE>/` artifacts + `contractsDoc` + `<matrixRoot>/modules.json` + security (trust boundary) |
-| cross-stack quality | Shared coding-style/security + CLAUDE.md host |
+| Mode | Scope | FINDER |
+|---|---|---|
+| `module` | `paths` của module trong modules.json (fallback `[path]`; folder không tồn tại → fail). Không có specify.md lẫn requirement.md → lens `spec` = `N/A — no spec artifact`, chỉ chạy lens rules | MỘT FINDER per module, nhận mọi lens active; nhiều module → song song |
+| `changes` | dirty-check → diff → map file → lens (rule/spec file đổi → thêm staleness cross-check với code reality) | ≤50 files: MỘT FINDER mọi lens; >50: một FINDER per lens active |
+| `current` | estate (hoặc `<path>`) | một FINDER per lens active (≤5), song song, `run_in_background` |
 
-## Step 1 — Resolve scope
-
-**`changes` mode:** dirty-check → diff `<base>...HEAD` → map file → lens (source code →
-constitution+naming+id; HTTP adapter/route literal → thêm contract; content asset/data
-table → asset+id; rule/spec file đổi → staleness cross-check với code reality). ≤50 files
-chạy inline (tự FINDER + vẫn spawn VERIFIER độc lập).
-
-**`current` mode:** spawn 5 parallel FINDER agents (`subagent_type: code-auditor`,
-`run_in_background`), mỗi agent một lens: (1) constitution/patterns, (2) naming, (3) id,
-(4) asset + content-parity, (5) contract/progress/duplication. Prompt mỗi agent: vai
-`FINDER` + lens + rule files resolved ở Step 0 + scope + ENUMERATE trước + exhaustive +
-property-not-proxy + severity + output contract (CANDIDATES/FR_STATUS/METRICS/COVERAGE/
-COMPLIANT — không tự đánh id). Agent type chưa đăng ký trong session → dùng
-`general-purpose` và nhồi đủ vai/lens/rules/output-contract vào prompt.
+`subagent_type: code-auditor`. Agent type chưa đăng ký trong session → `general-purpose` +
+dòng đầu prompt: "Read `.claude/ndvkit/agents/code-auditor.md` và làm đúng vai <vai> trong đó".
 
 ## Step 2 — Collect + dedupe
 
-Merge FINDER (hoặc inline). Dedupe candidate cùng `path(:line)` + rule. Hai lens flag cùng
-file cho rule KHÁC nhau → giữ cả hai. Đánh id tạm.
+Merge output FINDER. Dedupe candidate cùng evidence site + cùng rule; hai lens flag cùng file
+cho rule KHÁC nhau → giữ cả hai. Đánh id tạm.
 
-## Step 3 — Verify (verifier độc lập + convergence loop)
+## Step 3 — Verify
 
-1. **Loop** (VERIFIER instance MỚI mỗi round, bound 3): spawn agent `code-auditor` vai
-   VERIFIER với candidate set → verdict VERIFIED/CORRECTED/REFUTED + NEW candidates. Apply:
-   CORRECTED update tại chỗ; REFUTED → `## Refuted`; NEW → thêm set. Round trả 0
-   CORRECTED và 0 NEW → hội tụ, thoát. Chưa hội tụ sau 3 round → DỪNG, candidate tranh chấp
-   ship kèm flag `unstable`, ghi vào frontmatter `verification:`.
-2. Orchestrator spot-check: mỗi finding sẽ vào report, Read cite line + confirm quote;
-   count-based re-run grep. Không reproduce → sửa hoặc REFUTED.
-3. **Compliant/kept adversary pass**: verifier re-run độc lập formula của MỖI dòng
-   compliant + MỖI kept claim, detection method khác finder. Không reproduce → thành
-   candidate finding. Không formula → không được ship compliant.
-4. Verify COMPLETENESS: pattern under-list site → expand đủ. Cross-doc claim → sweep MỌI
-   doc trong tập cố định.
+VERIFIER input = candidate set + mọi dòng `COMPLIANT` (kèm formula) + prior findings của
+baseline. Baseline = report mới nhất cùng loại (`module`: `<auditReportRoot>/<MODULE>-*.md`;
+`current`/`changes`: mới nhất dưới `<auditReportRoot>/code/`); lấy finding còn `- [ ]` và
+finding đã `- [x]`. Không có → ghi "no baseline".
 
-## Step 3b — Prior-report re-verify
+- `module`: MỘT round VERIFIER per module.
+- `current` / `changes`: loop, bound 3 round, instance MỚI mỗi round. Round N>1 chỉ nhận
+  CORRECTED + NEW của round N-1 (không gửi lại set đã VERIFIED). Round trả 0 CORRECTED + 0
+  NEW → hội tụ. Chưa hội tụ sau 3 round → candidate tranh chấp ship kèm flag `unstable`, ghi
+  vào frontmatter `verification:`.
 
-Report MỚI NHẤT trong `<auditReportRoot>/code/` (nếu có): (1) open finding → re-verify →
-resolved / still-present (carry, id mới + fresh `path:line`) / stale; (2) fixed finding →
-re-run formula + whole-pattern re-sweep (fix một site nhưng sibling-site sót = finding
-MỚI); (3) compliant/kept claim cũ → re-attack độc lập. Kết quả vào `## Prior findings
-re-verify`. Không có baseline → ghi "no baseline".
+Apply verdict: CORRECTED update tại chỗ; REFUTED → `## Refuted`; NEW → thêm vào set;
+`COMPLIANT` không reproduce → thành candidate; prior findings → `## Prior findings re-verify`
+(still-present carry sang `## Findings` với id mới + evidence mới).
 
 ## Step 4 — Priority + conflict screen
 
 Resolve overlap theo precedence. Rule-doc staleness (doc nói A, code reality B) là finding
-category riêng, cite cả hai phía. `## Rule conflicts — needs decision` (C-xxx) chỉ khi
-priority không arbitrate.
+category riêng, cite cả hai phía. Conflict priority không arbitrate → `C-NNN`.
 
-## Step 5 — Report
+## Step 5 — Report (một file `.md`)
 
-Ghi `<auditReportRoot>/code/<YYYYMMDD-HHMM>-<mode>/<YYYYMMDD-HHMM>-<mode>.md`. `.md` là
-CANONICAL — không drop/rename section. Template sections (đúng tên): frontmatter (date, job:
-code-audit, mode, scope, git, verification tally) · `## Summary` · `## Coverage` ·
-`## Metrics` ·
-`## FR status` · `## Findings` (per lens; mỗi finding `- [ ] **F-NNN**` + Severity/Evidence/
-Impact/Fix) · `## Rule conflicts — needs decision` (C-NNN) · `## Refuted` (R-NNN) ·
-`## Prior findings re-verify` · `## Compliant` (mỗi dòng kèm formula re-runnable).
+- `module` → `<auditReportRoot>/<MODULE>-<yyyy-mm-dd>.md`
+- `current` / `changes` → `<auditReportRoot>/code/<YYYYMMDD-HHMM>-<mode>.md`
 
-Sau đó chat summary theo ngôn ngữ làm việc của project: tổng counts + verification tally +
-severity breakdown, finding blast-radius lớn nhất, link report. Recommend `/ndv-audit-fix`
-— không tự bắt đầu fix.
+Sections (đúng tên — `/ndv-audit-fix` parse theo tên): frontmatter (`date`, `job: code-audit`,
+`mode`, `scope`, `module` + `verdict` khi mode `module`, `git`, `verification` tally) ·
+`## Summary` · `## Coverage` · `## FR status` (mode `module`: bảng coverage mọi FR/NFR, bắt
+buộc) · `## Metrics` (chỉ metric có formula) · `## Findings` (mỗi finding `- [ ] **F-NNN**` +
+Severity/Finding/Evidence/Impact/Fix, severity giảm dần) · `## Rule conflicts — needs decision`
+· `## Refuted` (R-NNN) · `## Notes` (WIP — fix-flow bỏ qua) · `## Prior findings re-verify` ·
+`## Compliant` (mỗi dòng kèm formula).
+
+Verdict (mode `module`): `FAIL` = còn finding `blocker`/`critical`, hoặc FR `missing` không
+có deferral note trong spec; `PASS-WITH-FINDINGS` = có finding khác; `PASS` = không finding.
+
+## Step 6 — Close
+
+1. Mode `module`: refresh status mọi verdict —
+   `python3 .claude/ndvkit/skills/ndv-sync/scripts/ndv_check.py --refresh-status <MODULE> --write`
+   (không có Python → `/ndv-module-matrix` §Status lifecycle, sửa field `status` bằng tay).
+2. Chat summary theo ngôn ngữ làm việc của project: verdict (mode `module`) + counts theo
+   severity + verification tally + finding blast-radius lớn nhất + link report.
+3. Next: `/ndv-audit-fix <report>` — skill đó own triage (code-fix / spec-fix / register-fix /
+   defer). Không tự bắt đầu fix.

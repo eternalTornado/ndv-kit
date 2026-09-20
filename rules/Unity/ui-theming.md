@@ -71,19 +71,36 @@ per-line. `<uiRoot>` = folder UI chính của project (declare trong host rules;
 
 ## Audit criteria (re-runnable; exclude third-party + Unity-generated folders)
 
+Formula dạng lệnh nằm ở code block dưới bảng (`grep -E`, alternation viết `|` thường, glob
+`--include` đặt trong nháy đơn). Bảng chỉ giữ target + định nghĩa.
+
 | Metric | Target | Formula |
 |---|---|---|
-| tokenSourceCount | 1 | `grep -rln ":root" --include=*.uss <uiRoot>` |
+| tokenSourceCount | 1 | F-01 |
 | tokenCollisionCount | 0 | mọi cặp define `--<name>:` trùng tên khác giá trị |
-| hardcodedColorLiterals | 0 | `grep -rnE "#[0-9a-fA-F]{6,8}\|rgba?\(" --include=*.uss <uiRoot>` trừ dòng trong `:root` block và dòng match `-unity-material.*prop\(` |
-| hardcodedSizeLiterals | 0 | `grep -rnE "font-size:\s*[0-9]+px" --include=*.uss <uiRoot>` |
-| inlineStyleLiterals | 0 | `grep -rnE "style=\"[^\"]*(#[0-9a-fA-F]{6,8}\|rgba?\(\|[0-9]+px)" --include=*.uxml` |
+| hardcodedColorLiterals | 0 | F-02, trừ dòng trong `:root` block và dòng match `-unity-material.*prop\(` |
+| hardcodedSizeLiterals | 0 | F-03 |
+| inlineStyleLiterals | 0 | F-04 |
 | tokenAdoptionPct | ≥95% | số ref `var(--…)` ÷ (var refs + rule-body appearance literals) |
 | tokenAxisCoveragePct | 100% | số axis có token ÷ 8 |
 | screenSkeletonConformancePct | ≥95% | UXML có đúng một named `<screen>Root` ÷ tổng screen UXML |
 | duplicateElementNameCount | 0 | per-UXML: `name=` value ≥2 lần (trừ Template alias) MÀ có `Q("name")` phẳng chứa >1 bản; loại dup scoped-per-unique-parent + `Query<>()` multi-collect + decorative-unqueried |
+| deadBindCount | 0 | literal của MỌI helper bind trong UI code (`Q(`, `Q<`, `Query(`, `Bind(` + wrapper của project) ∉ author set = union element `name=` của TOÀN BỘ markup estate; trừ pending re-wire ([known-pitfalls.md](known-pitfalls.md) P-08 — note, không phải finding). Số literal đã đối chiếu PHẢI = số literal grep được |
 | reuseCoveragePct | ≥90% | shared component fragment ÷ (shared + copy-paste fragment) |
 | inlineDuplication | 0 | UXML/USS block duplicated ≥2 chỗ |
-| codeBuiltVisualElementCount | 0 | `grep -rnE "new (VisualElement\|Label\|Button\|Image\|ScrollView\|TextField\|Toggle)\(" --include=*.cs` trừ `Editor/**`, `Test/**` |
+| codeBuiltVisualElementCount | 0 | F-05, trừ `Editor/**`, `Test/**` |
 | reskinReady (per screen) | true | tokenAdoption của screen ≥95% ∧ inline-style literal trong screen = 0 ∧ đúng một `<screen>Root` ∧ duplicateElementName (flat-query) trong screen = 0 |
 | reskinReadyPct | ≥90% | số screen `reskinReady = true` ÷ tổng screen UXML |
+
+```bash
+# F-01 tokenSourceCount
+grep -rln ":root" --include='*.uss' <uiRoot>
+# F-02 hardcodedColorLiterals
+grep -rnE "#[0-9a-fA-F]{6,8}|rgba?\(" --include='*.uss' <uiRoot>
+# F-03 hardcodedSizeLiterals
+grep -rnE "font-size:\s*[0-9]+px" --include='*.uss' <uiRoot>
+# F-04 inlineStyleLiterals
+grep -rnE "style=\"[^\"]*(#[0-9a-fA-F]{6,8}|rgba?\(|[0-9]+px)" --include='*.uxml' <uiRoot>
+# F-05 codeBuiltVisualElementCount
+grep -rnE "new (VisualElement|Label|Button|Image|ScrollView|TextField|Toggle)\(" --include='*.cs' <codeRoots>
+```
