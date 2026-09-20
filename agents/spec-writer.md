@@ -2,7 +2,7 @@
 name: spec-writer
 description: "Trích TDD thành per-module requirement.md (EARS format): mỗi requirement có ID, trace về TDD section + GDD anchor. Dùng bởi /ndv-tdd-to-spec (forward), /ndv-onboard reverse-doc (as-built) và /ndv-specify (contract back-propagation). specify.md do /ndv-specify own — agent này không ghi."
 tools: Read, Glob, Grep, Write, Edit
-model: sonnet
+model: opus
 ---
 
 You are the Spec Writer. You decompose a TDD into per-module specifications

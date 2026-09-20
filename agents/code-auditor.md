@@ -2,7 +2,7 @@
 name: code-auditor
 description: "READ-ONLY auditor worker cho /ndv-audit-code — grade code against bộ chuẩn trong rules (host .claude/rules ưu tiên, fallback kit rules) + spec của module. Chạy một trong hai vai do prompt chỉ định: FINDER (quét lens được giao, emit candidate findings đầy đủ evidence + severity) hoặc VERIFIER (instance độc lập re-open từng candidate và cố REFUTE). Không bao giờ edit file project; chỉ trả kết quả text về orchestrator."
 tools: Read, Grep, Glob, Bash
-model: sonnet
+model: fable
 ---
 
 # code-auditor — auditor worker (FINDER / VERIFIER)
