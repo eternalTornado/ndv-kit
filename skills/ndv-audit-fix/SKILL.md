@@ -61,10 +61,11 @@ staleness / spec↔code conflict (bản chất là spec-fix candidate).
 
 ## Step 3 — Execute (agent audit-fixer per cluster)
 
-Sort cluster theo severity cao nhất giảm dần. Spawn `audit-fixer` per cluster — cluster
-disjoint file chạy song song; cluster chạm cùng file → gộp vào MỘT agent, chạy tuần tự trong
-agent đó. Prompt: finding records đầy đủ + path rule file được cite trong Impact +
-`verifyNote`. Agent type chưa đăng ký → `general-purpose` + dòng đầu prompt: "Read
+Sort cluster theo severity cao nhất giảm dần. Spawn `audit-fixer` (Task tool, model: sonnet;
+cluster chứa finding `blocker`/`critical` → model: opus) per cluster — cluster disjoint file
+chạy song song; cluster chạm cùng file → gộp vào MỘT agent, chạy tuần tự trong agent đó.
+Prompt: finding records đầy đủ + path rule file được cite trong Impact + `verifyNote`. Agent
+type chưa đăng ký → `general-purpose` (cùng model) + dòng đầu prompt: "Read
 `.claude/ndvkit/agents/audit-fixer.md` và làm đúng contract trong đó".
 
 Agent trả verdict per finding: `fixed` / `blocked` (+lý do) / `stale` / `needs-decision`
@@ -74,7 +75,9 @@ Agent trả verdict per finding: `fixed` / `blocked` (+lý do) / `stale` / `need
 
 1. Compile check theo `verifyNote`. Fail → RESUME đúng agent instance đã sửa batch đó (giữ
    context — spawn mới chỉ khi harness không resume được) kèm error, tối đa 2 vòng; vẫn fail →
-   STOP, báo user kèm error + files changed, không tick finding nào của batch.
+   MỘT instance `audit-fixer` mới (Task tool, model: opus) nhận finding records của batch +
+   error delta + files đã đổi, thử một lần; vẫn fail → STOP, báo user kèm error + files
+   changed, không tick finding nào của batch.
 2. Orchestrator re-run Evidence formula của TỪNG finding verdict `fixed`: còn hit tại site
    trong hit list → hạ về `blocked`.
 3. `stale` / `needs-decision` → gom lại AskUserQuestion cuối run; quyết định fix → resume

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """ndv_check.py — deterministic, read-only-by-default checker for ndvkit pipeline
-artifacts (TDD / Specs / ModuleMatrix / rules / CLAUDE.md).
+artifacts (Specs / ModuleMatrix / rules / CLAUDE.md).
 
 Runs from the HOST repo root. Config-driven, stack-agnostic: every root/path used
 below comes from ``ndvkit.config.json`` — nothing about a specific project is
@@ -9,7 +9,7 @@ hard-coded. Python 3.8+, stdlib only.
 Checks:
   code-cite      -- `<path>::<Type>[.<Member>][:<line>]` and legacy `<path>.<ext>:<N>`
                      cites into codeRoots still resolve and still land.
-  doc-cite       -- cites into rulesRoot/kitRulesRoot/tddRoot/specsRoot/gddRoot
+  doc-cite       -- cites into rulesRoot/kitRulesRoot/specsRoot/gddRoot
                      markdown docs still resolve (file, #section, :line).
   contract-gap   -- Contract surface / Consumer obligations tables in
                      requirement.md/specify.md carry a real Owner/Consumer FR id
@@ -214,10 +214,7 @@ def gather_artifacts(cfg, notes):
     """Returns (code_cite_artifacts, doc_cite_artifacts, matrix_path). Degrades
     gracefully (with a note) when a root or modules.json is absent — never scans
     audit reports or the kit's own folder, since none of those live under the
-    configured tddRoot/specsRoot/rulesRoot in a sane host layout."""
-    tdd_md = glob_md(cfg.get("tddRoot"))
-    if not cfg.get("tddRoot") or not os.path.isdir(cfg.get("tddRoot") or ""):
-        notes.append("tddRoot missing or not configured — TDD artifacts skipped")
+    configured specsRoot/rulesRoot in a sane host layout."""
     specs_md = glob_md(cfg.get("specsRoot"))
     if not cfg.get("specsRoot") or not os.path.isdir(cfg.get("specsRoot") or ""):
         notes.append("specsRoot missing or not configured — Specs artifacts skipped")
@@ -232,7 +229,7 @@ def gather_artifacts(cfg, notes):
     else:
         notes.append("matrixRoot not configured — modules.json-dependent checks degrade")
 
-    code_cite_artifacts = sorted(set(tdd_md + specs_md + ([matrix_path] if matrix_path else [])))
+    code_cite_artifacts = sorted(set(specs_md + ([matrix_path] if matrix_path else [])))
 
     doc_cite_artifacts = list(code_cite_artifacts)
     if os.path.isfile("CLAUDE.md"):
@@ -538,7 +535,7 @@ def check_doc_cite(artifacts, doc_roots, cache):
         for lineno, raw in enumerate(lines, start=1):
             for _start, _end, path, suffix in iter_doc_cites(raw, tick_re, bare_re):
                 if PLACEHOLDER_RE.search(path):
-                    continue  # doc prose illustrating a naming pattern (`docs/TDD/<Feature>/tdd.md`), not a real cite
+                    continue  # doc prose illustrating a naming pattern (`docs/Specs/<MODULE>/requirement.md`), not a real cite
                 cite_text = path + (suffix or "")
                 if not os.path.isfile(path):
                     findings.append(Finding(art, lineno, cite_text, "broken-cite", "doc-missing"))
@@ -1693,8 +1690,8 @@ def render_modules_md(cfg, data):
     for layer in sorted(by_layer.keys(), key=layer_key):
         lines.append("## Layer {}".format(layer))
         lines.append("")
-        lines.append("| Module | Status | Deps | Planned deps | Code | TDD | Spec |")
-        lines.append("|---|---|---|---|---|---|---|")
+        lines.append("| Module | Status | Deps | Planned deps | Code | Spec |")
+        lines.append("|---|---|---|---|---|---|")
         for m in sorted(by_layer[layer], key=lambda x: x.get("id", "")):
             mid = m.get("id", "")
             name = m.get("name")
@@ -1708,12 +1705,10 @@ def render_modules_md(cfg, data):
             planned_cell = ", ".join("`{}`".format(escape_cell(d)) for d in planned) if planned else "—"
             path = m.get("path")
             code_cell = "[{}]({})".format(escape_cell(path), rel_link(path)) if path else "—"
-            tdd = m.get("tdd")
-            tdd_cell = "[tdd]({})".format(rel_link(tdd)) if tdd else "—"
             spec = m.get("spec")
             spec_cell = "[spec]({})".format(rel_link(spec)) if spec else "—"
-            lines.append("| {} | {} | {} | {} | {} | {} | {} |".format(
-                label, status, deps_cell, planned_cell, code_cell, tdd_cell, spec_cell))
+            lines.append("| {} | {} | {} | {} | {} | {} |".format(
+                label, status, deps_cell, planned_cell, code_cell, spec_cell))
         lines.append("")
 
     content = "\n".join(lines).rstrip("\n") + "\n"
@@ -1783,7 +1778,7 @@ def contains_source_file(folder):
     return False
 
 
-ESTATE_DOC_ROOTS = ("gddRoot", "tddRoot", "specsRoot", "matrixRoot", "rulesRoot", "auditReportRoot")
+ESTATE_DOC_ROOTS = ("gddRoot", "specsRoot", "matrixRoot", "rulesRoot", "auditReportRoot")
 
 
 def estate_rows(cfg):
@@ -1809,16 +1804,14 @@ def estate_rows(cfg):
     return rows
 
 
-def coverage_row_cells(label, mid, spec_folder, code_display, registered, tdd_path, cfg, cache, matrix_path):
-    """9 coverage-matrix cells for one row (Module, Code, Matrix entry, TDD,
+def coverage_row_cells(label, mid, spec_folder, code_display, registered, cfg, cache, matrix_path):
+    """8 coverage-matrix cells for one row (Module, Code, Matrix entry,
     requirement, specify, plan, tasks, Audit report). `label` is the display
     name used when there's no module id (spec-only / unregistered rows).
     `code_display`, if given, is shown verbatim in the Code cell."""
     module_cell = "`{}`".format(escape_cell(mid)) if mid else escape_cell(label)
     code_cell = "✔ {}".format(escape_cell(code_display)) if code_display else "—"
     matrix_cell = "✔ {}".format(escape_cell(matrix_path)) if registered and matrix_path else "—"
-    tdd_cell = ("✔ {}".format(escape_cell(tdd_path))
-                if tdd_path and os.path.isfile(tdd_path) else "—")
 
     if spec_folder:
         req_path = to_posix(os.path.join(spec_folder, "requirement.md"))
@@ -1849,7 +1842,7 @@ def coverage_row_cells(label, mid, spec_folder, code_display, registered, tdd_pa
             audit_cell = "✔ {} ({})".format(
                 escape_cell(report_path), verdict if verdict is not None else "unreadable")
 
-    return [module_cell, code_cell, matrix_cell, tdd_cell, req_cell, specify_cell, plan_cell, tasks_cell, audit_cell]
+    return [module_cell, code_cell, matrix_cell, req_cell, specify_cell, plan_cell, tasks_cell, audit_cell]
 
 
 def run_inventory(args, cfg, cache):
@@ -1883,13 +1876,13 @@ def run_inventory(args, cfg, cache):
         code_display = m.get("path") or next((p for p in (m.get("paths") or []) if p), None)
         if not module_has_source(m):
             code_display = None  # same criterion as --refresh-status: a folder without source is not code
-        rows.append(coverage_row_cells(mid, mid, spec_folder, code_display, True, m.get("tdd"),
+        rows.append(coverage_row_cells(mid, mid, spec_folder, code_display, True,
                                         cfg, cache, matrix_path))
 
     for name, full in immediate_subdirs(specs_root):
         if full in module_specs:
             continue
-        rows.append(coverage_row_cells("(spec only) " + name, None, full, None, False, None,
+        rows.append(coverage_row_cells("(spec only) " + name, None, full, None, False,
                                         cfg, cache, matrix_path))
 
     for root in [to_posix(r) for r in (cfg.get("codeRoots") or [])]:
@@ -1898,7 +1891,7 @@ def run_inventory(args, cfg, cache):
                 continue
             if module_of_path(full, module_paths) is not None:
                 continue
-            rows.append(coverage_row_cells("(unregistered) " + full, None, None, full, False, None,
+            rows.append(coverage_row_cells("(unregistered) " + full, None, None, full, False,
                                             cfg, cache, matrix_path))
 
     estate = estate_rows(cfg)
@@ -1908,7 +1901,7 @@ def run_inventory(args, cfg, cache):
             "mode": "inventory",
             "estate": [{"root": label, "path": path, "exists": exists, "count": count, "unit": unit}
                        for label, path, exists, count, unit in estate],
-            "coverageColumns": ["Module", "Code", "Matrix entry", "TDD", "requirement",
+            "coverageColumns": ["Module", "Code", "Matrix entry", "requirement",
                                  "specify", "plan", "tasks", "Audit report"],
             "coverage": rows,
             "notes": notes,
@@ -1925,8 +1918,8 @@ def run_inventory(args, cfg, cache):
             out.write("| {} | {} | {} | {} {} |\n".format(
                 label, path or "—", "yes" if exists else "no", count, unit))
         out.write("\n## Coverage\n\n")
-        out.write("| Module | Code | Matrix entry | TDD | requirement | specify | plan | tasks | Audit report |\n")
-        out.write("|---|---|---|---|---|---|---|---|---|\n")
+        out.write("| Module | Code | Matrix entry | requirement | specify | plan | tasks | Audit report |\n")
+        out.write("|---|---|---|---|---|---|---|---|\n")
         for cells in rows:
             out.write("| " + " | ".join(cells) + " |\n")
         if notes:
@@ -2128,8 +2121,7 @@ def main(argv=None):
     if "doc-cite" in requested:
         doc_roots = {
             "rulesRoot": cfg.get("rulesRoot"), "kitRulesRoot": cfg.get("kitRulesRoot"),
-            "tddRoot": cfg.get("tddRoot"), "specsRoot": cfg.get("specsRoot"),
-            "gddRoot": cfg.get("gddRoot"),
+            "specsRoot": cfg.get("specsRoot"), "gddRoot": cfg.get("gddRoot"),
         }
         findings_by_check["doc-cite"] = check_doc_cite(doc_cite_artifacts, doc_roots, cache)
 

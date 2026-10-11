@@ -1,6 +1,6 @@
 ---
 name: ndv-tasks
-description: "Bước 4c pipeline ndvkit (SDD tasks): từ plan.md đã approve tạo/refresh <specsRoot>/<MODULE>/tasks.md — ordered task list theo phase, mỗi task ≤1 file-cluster, map về FR. Gate AskUserQuestion approve trước khi /ndv-implement. Dùng khi plan mới approve hoặc plan revise."
+description: "Bước 3 pipeline ndvkit (SDD tasks): từ plan.md đã approve tạo/refresh <specsRoot>/<MODULE>/tasks.md — ordered task list theo phase, mỗi task ≤1 file-cluster, map về FR. Gate AskUserQuestion approve trước khi /ndv-implement. Dùng khi plan mới approve hoặc plan revise."
 argument-hint: "<module-id>"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Write, Edit, Bash, AskUserQuestion, TodoWrite

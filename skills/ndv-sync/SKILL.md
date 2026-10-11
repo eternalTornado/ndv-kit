@@ -1,7 +1,7 @@
 ---
 name: ndv-sync
-description: "Bước 6 pipeline ndvkit: delta orchestrator — khi GDD/TDD/ModuleMatrix/requirement/specify/plan/code đổi, detect artifact nào downstream bị stale và route đúng skill update (mọi skill trong kit đều idempotent). Dùng khi 'GDD vừa update', 'có module mới', 'spec đổi rồi', hoặc muốn health-check toàn pipeline."
-argument-hint: "[gdd|tdd|matrix|spec|code <target>] [--check-only] [--reanchor]"
+description: "Bước 6 pipeline ndvkit: delta orchestrator — khi GDD/ModuleMatrix/requirement/specify/plan/code đổi, detect artifact nào downstream bị stale và route đúng skill update (mọi skill trong kit đều idempotent). Dùng khi 'GDD vừa update', 'có module mới', 'spec đổi rồi', hoặc muốn health-check toàn pipeline."
+argument-hint: "[gdd|matrix|spec|code <target>] [--check-only] [--reanchor]"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash, Write, Edit, Task, Skill, AskUserQuestion, TodoWrite
 ---
@@ -16,7 +16,7 @@ Read `.claude/ndvkit/ndvkit.config.json` for all roots. Host
 
 ## Parse arguments
 
-- `gdd|tdd|matrix|spec|code <target>` — the artifact tier that changed and
+- `gdd|matrix|spec|code <target>` — the artifact tier that changed and
   its path/id. Omitted → full pipeline health-check (Phase 1 over
   everything).
 - `--check-only` — report staleness, run nothing.
@@ -25,30 +25,31 @@ Read `.claude/ndvkit/ndvkit.config.json` for all roots. Host
 
 ## Phase 1 — Staleness detection
 
-The pipeline chain is `GDD → TDD → ModuleMatrix → requirement.md →
-specify.md → plan.md → tasks.md → code`. An artifact is STALE when its
-upstream source changed after it was last written. Detect with evidence:
+The pipeline chain is `GDD → requirement.md (+ modules.json) → specify.md → plan.md →
+tasks.md → code`. An artifact is STALE when its upstream source changed after it was last
+written. Detect with evidence:
 
 1. `git log -1 --format=%cI --invert-grep --grep='ndv-cite-only: true' -- <path>` per artifact
    (fallback: filesystem mtime for untracked files) — cite-only commits skip the timestamp
    (§Cite-only edit).
 2. For a declared change (`gdd <path>` etc.), start at that tier and walk
    downstream only.
-3. Content-level check where timestamps lie: TDD cites GDD anchors — Grep the
-   anchors still exist; requirement cites TDD sections — same; modules.json
+3. Content-level check where timestamps lie: requirement.md cites GDD anchors (FR/NFR
+   `Source`, frontmatter `gdd-sources`) — Grep the anchors still exist; modules.json
    `deps[]` vs actual import/using graph; plan.md `approved` flag predates a
    specify.md rewrite → approval is void.
+   Legacy host: Grep `^tdd-source:` in `<specsRoot>/*/requirement.md` — a hit is `legacy-tdd`
+   (requirement.md still cites the removed TDD tier; its TDD cites are not checked by doc-cite).
    Artifact cites code: for every `<file>::<Symbol>` (and legacy `<file>.<ext>:<N>`) found in
-   `<tddRoot>/**`, `<specsRoot>/**`, `<matrixRoot>/modules.json` — file exists under
-   `codeRoots` AND the symbol grep-matches in it (legacy line anchor: the line still holds
+   `<specsRoot>/**`, `<matrixRoot>/modules.json` — file exists under `codeRoots` AND the
+   symbol grep-matches in it (legacy line anchor: the line still holds
    the quoted text or the symbol named beside it); a miss is `broken-cite`; a legacy
    line-only anchor that still lands is `legacy-line-anchor` (informational — convert with
    `--reanchor`); a cite that resolves only by unique basename/suffix is `inexact-path`
    (informational).
-   Artifact cites doc/rule: every cite into `<rulesRoot>`, `<kitRulesRoot>`, `<tddRoot>`,
-   `<specsRoot>`, `<gddRoot>` found in `<tddRoot>/**`, `<specsRoot>/**`, `CLAUDE.md` and
-   `<rulesRoot>/**` — the file exists on disk and a `#section` names an existing heading;
-   a miss is `broken-cite`.
+   Artifact cites doc/rule: every cite into `<rulesRoot>`, `<kitRulesRoot>`, `<specsRoot>`,
+   `<gddRoot>` found in `<specsRoot>/**`, `CLAUDE.md` and `<rulesRoot>/**` — the file exists
+   on disk and a `#section` names an existing heading; a miss is `broken-cite`.
    Contract: every Contract surface / Consumer obligations row of every requirement.md and
    specify.md carries an `Owner FR` / `Consumer FR` id that Grep-matches in that module's
    requirement.md; otherwise `contract-gap` (a `stopgap — …` row is reported, not a gap).
@@ -81,22 +82,22 @@ requirement text, value, decision or task.
 ## Phase 2 — Impact report
 
 Present a table: artifact → status (`fresh | stale | broken-cite | void-approval |
-contract-gap | status-drift | legacy-line-anchor | inexact-path | unowned-code`) → evidence →
-skill to run.
+contract-gap | status-drift | legacy-line-anchor | inexact-path | unowned-code | legacy-tdd`) →
+evidence → skill to run.
 Example routes:
 
 | Change | Route |
 |---|---|
-| GDD section edited | `/ndv-gdd-to-tdd <feature> --update` → then re-walk |
-| TDD mới / TDD deps đổi | `/ndv-module-matrix <feature>` + `/ndv-tdd-to-spec <feature>` |
+| GDD section edited | `/ndv-gdd-to-spec <Feature> --update` → then re-walk |
 | Module mới xuất hiện trong code | `/ndv-module-matrix` (registration + layer) |
 | requirement.md đổi | `/ndv-specify <MODULE>` |
 | specify.md đổi sau khi plan approved | `/ndv-plan <MODULE>` (re-approve) |
 | plan.md đổi sau khi tasks approved | `/ndv-tasks <MODULE>` (re-approve) |
 | code đổi ngoài pipeline (hotfix) | `/ndv-audit-code module <MODULE>` (drift check) |
-| Audit kết luận code đúng, spec sai (Triage `spec-fix`) | `/ndv-specify <MODULE> --from-audit <report>` — owner của việc viết lại FR theo as-built; TDD/GDD nói khác code → `/ndv-gdd-to-tdd <Feature> --update` sau khi Design sửa GDD |
+| Audit kết luận code đúng, spec sai (Triage `spec-fix`) | `/ndv-specify <MODULE> --from-audit <report>` — owner của việc viết lại FR theo as-built; GDD nói khác code → `/ndv-gdd-to-spec <Feature> --update` sau khi Design sửa GDD |
 | `status-drift` | `ndv_check.py --refresh-status --write` (không cần skill, không spawn agent) |
-| Code anchor `broken-cite`, symbol still exists elsewhere (moved/renamed file, shifted line) | cite-only edit at the owning artifact: TDD → `tdd-writer` (Mode brownfield, cite-only); requirement.md → `spec-writer` (cite-only); specify/plan/tasks → edit the cite in place. Approved plan/tasks keep their approval (§Cite-only edit) |
+| `legacy-tdd` | `/ndv-gdd-to-spec <Feature> --update` (`<Feature>` = folder trong path `tdd-source`) — re-cite sang GDD anchor; requirement.md `origin: reverse-engineered` → `/ndv-onboard reverse-doc <MODULE>` (README §Activation, mục Migrate từ kit bản cũ) |
+| Code anchor `broken-cite`, symbol still exists elsewhere (moved/renamed file, shifted line) | cite-only edit at the owning artifact: requirement.md → `spec-writer` (Task tool, model: sonnet, Mode cite-only); specify/plan/tasks → edit the cite in place. Approved plan/tasks keep their approval (§Cite-only edit) |
 | Code anchor `broken-cite`, symbol gone (behaviour removed or replaced) | not cite-only — content drift: `/ndv-audit-code module <MODULE>`, then the owning skill of the artifact |
 | Doc/rule `broken-cite` | cite-only edit: point the cite at the file that exists on disk (rule files: `<kitRulesRoot>/…` unless the host adopted a copy under `<rulesRoot>`) |
 | `legacy-line-anchor` / `inexact-path` | `/ndv-sync --reanchor` |

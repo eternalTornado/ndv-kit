@@ -1,6 +1,6 @@
 ---
 name: ndv-plan
-description: "Bước 4b pipeline ndvkit (SDD plan): từ specify.md tạo/refresh <specsRoot>/<MODULE>/plan.md — technical design (module skeleton, types, data flow, wiring) theo module convention của project host. Kết thúc bằng gate AskUserQuestion approve; plan chưa approve thì không được implement. Dùng khi specify mới/đổi hoặc design cần revise."
+description: "Bước 2 pipeline ndvkit (SDD plan): từ specify.md tạo/refresh <specsRoot>/<MODULE>/plan.md — technical design (module skeleton, types, data flow, wiring) theo module convention của project host. Kết thúc bằng gate AskUserQuestion approve; plan chưa approve thì không được implement. Dùng khi specify mới/đổi hoặc design cần revise."
 argument-hint: "<module-id>"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Write, Edit, Bash, AskUserQuestion, TodoWrite
@@ -29,7 +29,7 @@ khi mâu thuẫn.
 5. Read the existing code the plan will extend: Glob the module `path` from the
    modules.json entry and Read every source file the design touches. Every as-built
    reference in plan.md cites `<path>::<Type>.<Member>` of a symbol opened in this
-   session (R3) — anchors are never carried over from specify.md, the TDD, or
+   session (R3) — anchors are never carried over from specify.md, requirement.md, or
    modules.json without re-opening the file, and code is never cited by bare `:<line>`.
 
 ## Phase 2 — Design

@@ -1,7 +1,7 @@
 # Go server structure
 
 This standard governs how the game server source (Go) is laid out — packages, layers,
-wiring, errors, transactions, logging. It is a criteria source that new code and spec/TDD
+wiring, errors, transactions, logging. It is a criteria source that new code and spec
 generation comply with; estate divergence is an audit finding.
 
 ## Scope

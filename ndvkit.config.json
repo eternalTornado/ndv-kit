@@ -1,6 +1,5 @@
 {
   "gddRoot": "GDD",
-  "tddRoot": "docs/TDD",
   "matrixRoot": "docs/ModuleMatrix",
   "specsRoot": "docs/Specs",
   "auditReportRoot": "docs/reports/ndv-audit",

@@ -17,7 +17,7 @@ Trước khi khẳng định bất kỳ điều gì về file / API / config / s
 Glob / Bash) verify trước. Sau khi edit / run: confirm exit code + output trước khi nói "done".
 Không trả lời từ memory.
 
-**Format cite**: doc/artifact (GDD, TDD, spec, rules) → `<path>#<section>` hoặc `<path>:<line>`;
+**Format cite**: doc/artifact (GDD, spec, rules) → `<path>#<section>` hoặc `<path>:<line>`;
 code (file dưới `codeRoots`) → `<path>::<Type>.<Member>` (symbol-based, mặc định) — `:<line>`
 chỉ đi kèm SAU symbol khi cần chỉ đúng một dòng (`<path>::<Type>.<Member>:<line>`), không bao
 giờ đứng một mình cho code; rule file → đúng đường dẫn của file đã mở, ưu tiên `#<section>` hơn
@@ -66,14 +66,14 @@ Mọi fact / value / decision phải kèm: `<path>#<section>` (doc) hoặc `<pat
 location đó trong session hiện tại.
 
 Cite vào code: symbol phải grep-match trong file tại thời điểm ghi artifact. Anchor code kế
-thừa từ artifact thượng nguồn (TDD, requirement, modules.json, audit report) mà chưa mở lại
+thừa từ artifact thượng nguồn (requirement, specify, modules.json, audit report) mà chưa mở lại
 file trong session này KHÔNG được ghi làm cite của artifact hiện tại — đổi sang symbol đã
 verify, hoặc bỏ anchor và giữ claim ở dạng không cite code.
 
 **Quyết định của user / owner** (câu trả lời AskUserQuestion khi resolve `NEEDS CLARIFICATION`,
 triage, chọn phương án) là source hợp lệ khi artifact thượng nguồn im lặng:
 `decision: <yyyy-mm-dd> — "<literal answer ≤2 câu>"`. Form này không dùng để ghi đè literal đã
-có ở GDD/TDD — câu trả lời mâu thuẫn thượng nguồn thì sửa thượng nguồn trước, artifact hạ
+có ở GDD — câu trả lời mâu thuẫn thượng nguồn thì sửa thượng nguồn trước, artifact hạ
 nguồn cite thượng nguồn.
 
 **Cite content, không cite topic.**
@@ -98,7 +98,7 @@ MUST quote literal cho:
 Paraphrase chỉ OK cho prose overview / narrative transition. Quote MUST kèm cite
 `<path>#<section>` hoặc `<path>:<line>`.
 
-Quote chứa anchor code của nguồn (vd một câu TDD có `Foo.cs:23-37`): giữ nguyên trong quote
+Quote chứa anchor code của nguồn (vd một câu GDD có `Foo.cs:23-37`): giữ nguyên trong quote
 vì đó là văn bản nguồn, nhưng anchor đó KHÔNG tính là cite của artifact hiện tại. Artifact cần
 cite code cho cùng claim → cite riêng theo R3 (symbol, đã mở file).
 

@@ -22,7 +22,7 @@ updated: <yyyy-mm-dd>
 - **Requirement**: WHEN <trigger>, the <module> shall <response>.
 - **Acceptance criteria**:
   - Given <precondition>, When <action>, Then <observable result — giá trị đo được, numeric convention theo host rules>.
-- **Trace**: `<tddRoot>/<Feature>/tdd.md#<section>` ← `<gddRoot>/<path>#<anchor>`
+- **Trace**: `<gddRoot>/<path>#<anchor>` (hoặc `decision:` / `contract:` / code symbol — đúng Source của FR trong requirement.md)
 
 ### <MODULE>-FR-002
 
@@ -38,8 +38,8 @@ updated: <yyyy-mm-dd>
 ## Contract surface (final)
 
 > `Owner FR` = ID trong `<specsRoot>/<Owning module>/requirement.md` (Grep ID khớp). Row chưa có owner FR =
-> `contract-gap` — `/ndv-specify` Phase 4 xử lý; gap còn mở phải nêu trong report. Stopgap có chủ đích:
-> ghi `stopgap — <Owning module> Out of scope`.
+> `contract-gap` — `/ndv-gdd-to-spec` gate B hoặc `/ndv-specify` Phase 4 xử lý; gap còn mở phải nêu
+> trong report. Stopgap có chủ đích: ghi `stopgap — <Owning module> Out of scope`.
 
 | Cần | Owning module | Interface/Event cụ thể | Owner FR | FR |
 |---|---|---|---|---|
@@ -47,13 +47,13 @@ updated: <yyyy-mm-dd>
 ## Consumer obligations (final)
 
 > Nghĩa vụ module này đặt lên consumer. `Consumer FR` = ID trong requirement.md của consumer; chưa có →
-> `contract-gap`. Không có → `N/A`.
+> `contract-gap`. Stopgap có chủ đích: ghi `stopgap — <Consumer module> Out of scope`. Không có → `N/A`.
 
 | Nghĩa vụ | Consumer module | Consumer FR | FR nguồn |
 |---|---|---|---|
 
 ## Traceability
 
-| Requirement | TDD section | GDD anchor |
+| Requirement | GDD anchor | Decision / contract |
 |---|---|---|
 | <MODULE>-FR-001 | … | … |

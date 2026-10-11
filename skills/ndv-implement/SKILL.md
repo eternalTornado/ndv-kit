@@ -1,6 +1,6 @@
 ---
 name: ndv-implement
-description: "Bước 4d pipeline ndvkit (SDD implement): thực thi tasks.md đã approve cho một module, phase-by-phase qua agent module-implementer, verify build/compile theo cơ chế của project host, dừng ở gate giữa các phase. Dùng sau khi plan + tasks đều approved."
+description: "Bước 4 pipeline ndvkit (SDD implement): thực thi tasks.md đã approve cho một module, phase-by-phase qua agent module-implementer, verify build/compile theo cơ chế của project host, dừng ở gate giữa các phase. Dùng sau khi plan + tasks đều approved."
 argument-hint: "<module-id> [--phase <n>] [--continue]"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Write, Edit, Bash, Task, Skill, AskUserQuestion, TodoWrite
@@ -38,18 +38,18 @@ When this skill is invoked:
 
 ## Phase 1 — Execute per phase
 
-MỘT instance `module-implementer` cho cả run: spawn ở phase đầu, các lần sau RESUME đúng
-instance đó (rules + plan + specify đã nằm trong context của nó). Spawn instance mới chỉ khi
-harness không resume được, hoặc agent báo context gần đầy — khi đó prompt mới ghi rõ phase
-nào đã xong.
+MỘT instance `module-implementer` (model: sonnet) cho cả run: spawn ở phase đầu, các lần
+sau RESUME đúng instance đó (rules + plan + specify đã nằm trong context của nó). Spawn
+instance mới chỉ khi harness không resume được, hoặc agent báo context gần đầy — khi đó prompt
+mới ghi rõ phase nào đã xong.
 
 For each phase in tasks.md:
 
 1. Snapshot `git status --porcelain` (baseline). Spawn / resume `module-implementer` (Task
-   tool) với: module id, phase cần chạy, paths tới plan.md + specify.md + tasks.md, write scope
-   (module `paths` + `<specsRoot>/<MODULE>/tasks.md` + files tasks name under no module's
-   `paths` + stopgap-approved files). Hành vi (no scope expansion, test policy, no commit) là
-   contract của agent — không restate trong prompt.
+   tool, model: sonnet) với: module id, phase cần chạy, paths tới plan.md + specify.md +
+   tasks.md, write scope (module `paths` + `<specsRoot>/<MODULE>/tasks.md` + files tasks name
+   under no module's `paths` + stopgap-approved files). Hành vi (no scope expansion, test
+   policy, no commit) là contract của agent — không restate trong prompt.
 2. On agent return:
    - **blocked with question** → AskUserQuestion, then resume the same instance with the answer.
    - **blocked: prerequisite <owner> <what>** → the same three options as Phase 0 step 3.
@@ -58,7 +58,11 @@ For each phase in tasks.md:
      major → stop, send back to `/ndv-specify`/`/ndv-plan`.
    - **completed** → verify: tasks checked in tasks.md, files exist, then
      build/compile check theo cơ chế verify của project (lỗi mới = phase
-     chưa done — resume the same instance with the errors).
+     chưa done — resume the same instance with the errors). Còn lỗi sau vòng compile-fix
+     thứ 2 của phase → spawn MỘT instance `module-implementer` mới (Task tool, model: opus)
+     với phase đó + error delta + files đã đổi, thử một lần; vẫn lỗi → STOP, báo user kèm
+     error + files changed. Phase kế tiếp resume lại instance sonnet, prompt nêu files
+     instance opus đã sửa.
 
      Scope check: `git status --porcelain` minus the baseline — every changed/new path must be
      inside the write scope (platform sidecar files, vd `.meta`, follow their asset). A path
@@ -81,17 +85,18 @@ hand-author).
    - `python3 .claude/ndvkit/skills/ndv-sync/scripts/ndv_check.py --checks deps` (Windows:
      `python` / `py -3`). Entry của module có `plannedDeps` khác rỗng, hoặc script báo
      `dep-undeclared` / `dep-declared-not-in-code` cho module → invoke skill
-     `/ndv-module-matrix <MODULE>` (Skill tool): promote planned edge thành `deps` kèm
-     `depEvidence`. Không có gì để promote → KHÔNG spawn `module-architect`. Stack script không
-     hỗ trợ / không có Python → luôn invoke skill đó.
+     `/ndv-module-matrix <MODULE>` (Skill tool — skill đó spawn `module-architect` Mode
+     module, model: sonnet): promote planned edge thành `deps` kèm `depEvidence`. Không có gì
+     để promote → KHÔNG spawn `module-architect`. Stack script không hỗ trợ / không có Python
+     → luôn invoke skill đó.
    - `… ndv_check.py --refresh-status <MODULE> --write` — `status` re-derive theo
      `/ndv-module-matrix` §Status lifecycle + sinh lại `modules.md` (skill trên đã chạy thì
      bước này đã nằm trong nó).
    Bỏ qua bước này để lại `register-lag` `medium` cho `/ndv-audit-code` tìm thấy.
 2. Cite sweep: run
    `python3 .claude/ndvkit/skills/ndv-sync/scripts/ndv_check.py --checks code-cite --touched <files changed this run>`
-   (no Python on the host → Grep `<tddRoot>`/`<specsRoot>` for the changed file names and verify
-   each cite per `/ndv-sync` Phase 1). Report every `broken-cite` with its owning artifact and
+   (no Python on the host → Grep `<specsRoot>` for the changed file names and verify each
+   cite per `/ndv-sync` Phase 1). Report every `broken-cite` with its owning artifact and
    the route from `/ndv-sync` Phase 2. Fixing them is a cite-only edit (`/ndv-sync` §Cite-only
    edit) — never bundled silently into this run.
 3. Report: phases done, files written, deviations, verify result, cite sweep result.

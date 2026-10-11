@@ -13,7 +13,7 @@ updated: <yyyy-mm-dd>
 > `<rulesRoot>` ưu tiên, fallback `<kitRulesRoot>`) — cite rule bằng đúng path của file đã mở
 > (R1). Design decision không bị spec ràng buộc: chọn MỘT phương án + justify kèm cite. Không
 > timeline/estimate.
-> Tham chiếu component/method có sẵn → cite symbol `<path>::<Type>.<Member>` (R3); mọi anchor code trong plan phải do người viết plan mở file trong session, không kế thừa từ specify/TDD.
+> Tham chiếu component/method có sẵn → cite symbol `<path>::<Type>.<Member>` (R3); mọi anchor code trong plan phải do người viết plan mở file trong session, không kế thừa từ specify/requirement.
 > Code SẼ BỊ THAY bởi plan này: mô tả ở dạng `trước implement: …` + cite symbol của member chứa
 > nó — không `:<line>`, không "currently"/"hiện tại" (câu đó sai ngay sau `/ndv-implement`).
 

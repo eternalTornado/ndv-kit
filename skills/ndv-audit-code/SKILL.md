@@ -58,8 +58,10 @@ Lens không có file nào trong scope → không spawn cho lens đó; ghi `N/A` 
 | `changes` | dirty-check → diff → map file → lens (rule/spec file đổi → thêm staleness cross-check với code reality) | ≤50 files: MỘT FINDER mọi lens; >50: một FINDER per lens active |
 | `current` | estate (hoặc `<path>`) | một FINDER per lens active (≤5), song song, `run_in_background` |
 
-`subagent_type: code-auditor`. Agent type chưa đăng ký trong session → `general-purpose` +
-dòng đầu prompt: "Read `.claude/ndvkit/agents/code-auditor.md` và làm đúng vai <vai> trong đó".
+Spawn (Task tool) `subagent_type: code-auditor`, model: fable — FINDER có lens set chỉ gồm
+`naming` và/hoặc `ui` → model: sonnet. Agent type chưa đăng ký trong session →
+`general-purpose` (cùng model) + dòng đầu prompt: "Read `.claude/ndvkit/agents/code-auditor.md`
+và làm đúng vai <vai> trong đó".
 
 ## Step 2 — Collect + dedupe
 
@@ -68,8 +70,9 @@ cho rule KHÁC nhau → giữ cả hai. Đánh id tạm.
 
 ## Step 3 — Verify
 
-VERIFIER input = candidate set + mọi dòng `COMPLIANT` (kèm formula) + prior findings của
-baseline. Baseline = report mới nhất cùng loại (`module`: `<auditReportRoot>/<MODULE>-*.md`;
+VERIFIER = spawn (Task tool) `subagent_type: code-auditor`, model: fable (fallback như Step
+1). Input = candidate set + mọi dòng `COMPLIANT` (kèm formula) + prior findings của baseline.
+Baseline = report mới nhất cùng loại (`module`: `<auditReportRoot>/<MODULE>-*.md`;
 `current`/`changes`: mới nhất dưới `<auditReportRoot>/code/`); lấy finding còn `- [ ]` và
 finding đã `- [x]`. Không có → ghi "no baseline".
 

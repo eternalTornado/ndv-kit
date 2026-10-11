@@ -4,6 +4,34 @@ File này là nơi DUY NHẤT ghi amendment cho rules của kit (written rationa
 theo [Shared/constitution.md](Shared/constitution.md) §Governance). Body của rule file chỉ
 chứa current state (R9.1).
 
+## 2026-10-10 — Bỏ tầng TDD: wording Shared/ai-discipline.md, Server/server.md + migrate host
+
+- **Rationale**: kit bỏ tầng TDD (Technical Design Document) theo quyết định của user — GDD sang
+  thẳng `requirement.md` + `specify.md` qua `/ndv-gdd-to-spec` (một workflow multi-agent, hỏi user
+  giữa các stage); `/ndv-gdd-to-tdd`, `/ndv-tdd-to-spec`, agent `tdd-writer`, template
+  `tdd-template.md` và key `tddRoot` bị xóa. Ví dụ "TDD" trong R1/R3/R4 của
+  `Shared/ai-discipline.md` và cụm "spec/TDD" ở đoạn mở đầu `Server/server.md` trỏ vào artifact
+  không còn tồn tại — đổi sang GDD / requirement / specify / spec; nghĩa rule và đánh số R không đổi.
+  "TDD" trong `Shared/constitution.md` §Testing policy là test-driven development — giữ nguyên.
+- **Migration**: cite vào `ai-discipline.md` / `server.md` giữ nguyên anchor — không cần cite-only
+  edit. Host có artifact từ pipeline cũ (`/ndv-sync`, `/ndv-onboard status` báo `legacy-tdd`):
+  - requirement.md còn cite TDD (`tdd-source`, Source trỏ `<tddRoot>/…`) → chạy
+    `/ndv-gdd-to-spec <Feature> --update`: stage author re-cite sang GDD anchor mà TDD đó quote
+    (spec-writer §Mode forward); câu TDD mang `decision:` → giữ decision (kèm GDD anchor của
+    section; GDD nay có literal cho điểm đó → cite GDD), không hỏi lại; không có GDD cite lẫn
+    decision → `NEEDS CLARIFICATION`; không còn row nào cite TDD → xóa `tdd-source`; specify.md
+    được compose lại ở stage specify khi module hết marker. Mọi module của feature đã re-cite → user
+    tự archive `<tddRoot>/<Feature>/` (kit không xóa).
+  - requirement.md `origin: reverse-engineered` còn cite TDD (as-built cũ, TDD `gdd-sources: N/A`
+    nên `--update` không chạm) → `/ndv-onboard reverse-doc <MODULE>`: spec-writer §Mode as-built
+    re-cite về code symbol, xóa `tdd-source`; xong mới archive TDD tương ứng.
+  - `ndvkit.config.json`: xóa key `tddRoot` (`ndv_check.py` bỏ qua nếu còn).
+  - `modules.json`: field `tdd` bị script bỏ qua; `plannedDepEvidence` trỏ `<tddRoot>` không còn
+    được check → trước khi archive TDD chạy `/ndv-module-matrix` (không arg, Mode full): xóa `tdd`,
+    re-cite/bỏ planned edge có evidence TDD theo Contract surface rows.
+  - Activation: xóa link/copy cũ `.claude/skills/ndv-gdd-to-tdd`, `.claude/skills/ndv-tdd-to-spec`,
+    `.claude/agents/tdd-writer.md`, re-copy `agents/*.md` (README §Activation).
+
 ## 2026-09-20 — Unity/ui-theming.md: formula Audit criteria chạy được + deadBindCount
 
 - **Rationale**: formula trong bảng §Audit criteria viết alternation dạng `\|` (escape của
