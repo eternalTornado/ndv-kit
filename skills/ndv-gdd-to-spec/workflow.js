@@ -59,6 +59,7 @@ A.gddFiles.forEach((f, i) => needStr(f, 'gddFiles[' + i + ']'));
 if (!isObj(A.config)) fail('args.config is required (paths from .claude/ndvkit/ndvkit.config.json)');
 ['gddRoot', 'specsRoot', 'matrixRoot', 'templates'].forEach(k => needStr(A.config[k], 'config.' + k));
 needArr(A.config.codeRoots, 'config.codeRoots', true);
+if (A.blueprint != null) needStr(A.blueprint, 'blueprint');
 if (A.moduleFilter != null) needArr(A.moduleFilter, 'moduleFilter', false);
 // Snapshot of requirement.md / specify.md taken by the main session before this run (the kit never commits, so git is no baseline).
 if (A.baselineDir != null) needStr(A.baselineDir, 'baselineDir');
@@ -121,6 +122,7 @@ const C = {
   gddRoot: A.config.gddRoot,
   specsRoot: A.config.specsRoot,
   matrixRoot: A.config.matrixRoot,
+  blueprint: isStr(A.blueprint) ? A.blueprint : A.config.matrixRoot + '/blueprint.json',
   templates: A.config.templates,
   kitRulesRoot: isStr(A.config.kitRulesRoot) ? A.config.kitRulesRoot : DEFAULT_KIT_RULES,
   rulesRoot: isStr(A.config.rulesRoot) ? A.config.rulesRoot : '.claude/rules',
@@ -271,6 +273,7 @@ function pathsBlock() {
     '- gddRoot: ' + q(C.gddRoot),
     '- specsRoot: ' + q(C.specsRoot) + ' — per module ' + q('<specsRoot>/<MODULE>/requirement.md') + ', ' + q('specify.md'),
     '- module matrix: ' + q(C.matrixRoot + '/modules.json'),
+    '- module blueprint: ' + q(C.blueprint) + ' — when present with ' + q('"approved": true') + ', it is the module catalog (ids, band, responsibilities, deps)',
     '- codeRoots: ' + C.codeRoots.map(x => q(x)).join(', '),
     '- contractsDoc: ' + (C.contractsDoc ? q(C.contractsDoc) : 'N/A — not configured'),
     '- templates: ' + q(C.templates),
@@ -726,8 +729,8 @@ function authorVerifyPrompt(b, written, round, prev) {
     ? 'Baseline (state before this run): ' + q(basePath('<MODULE>', 'requirement.md')) + ' — compare with ' + q('cmp') + ' / ' + q('diff') + ', never git (the kit never commits, so git is not "before this run"). Baseline file absent = new file.'
     : 'No baseline passed — skip every before/after comparison (ID stability, byte-identical rows); do not use git for it (the kit never commits, so git is not "before this run").';
   const scope = BASELINE
-    ? 'In scope = every FR/NFR/Data row that is new (absent from the baseline), named by a drift entry, or whose Source — now or in the baseline — cites one of ' + runFiles + ' or cites a TDD whose ' + q('gdd-sources') + ' lists one of them (legacy migration). Run checks 1 and 3–8 on in-scope rows only. Every other FR/NFR/Data row: check only that it is byte-identical to the baseline — a changed out-of-scope row = defect; do not audit it further. Checks 2 and 9 apply to the whole file.'
-    : 'In scope = every FR/NFR/Data row named by a drift entry, or whose Source cites one of ' + runFiles + ' (incl. ' + q('+ decision:') + '), is ' + q('decision:') + ' alone or a ' + q('NEEDS CLARIFICATION') + ' marker, or cites a TDD whose ' + q('gdd-sources') + ' lists one of them. Run checks 1 and 3–8 on in-scope rows only; leave every other row unaudited. Checks 2 and 9 apply to the whole file.';
+    ? 'In scope = every FR/NFR/Data row that is new (absent from the baseline), named by a drift entry, or whose Source — now or in the baseline — cites one of ' + runFiles + ' or cites a TDD whose ' + q('gdd-sources') + ' lists one of them (legacy migration). Run checks 1, 3–8 and 10 on in-scope rows only. Every other FR/NFR/Data row: check only that it is byte-identical to the baseline — a changed out-of-scope row = defect; do not audit it further. Checks 2 and 9 apply to the whole file.'
+    : 'In scope = every FR/NFR/Data row named by a drift entry, or whose Source cites one of ' + runFiles + ' (incl. ' + q('+ decision:') + '), is ' + q('decision:') + ' alone or a ' + q('NEEDS CLARIFICATION') + ' marker, or cites a TDD whose ' + q('gdd-sources') + ' lists one of them. Run checks 1, 3–8 and 10 on in-scope rows only; leave every other row unaudited. Checks 2 and 9 apply to the whole file.';
   const checks = [
     '1. EARS shape: exactly one pattern of the template\'s EARS table (Ubiquitous / WHEN / WHILE / IF-THEN / WHERE / Complex with one chain); exactly one testable behaviour — hidden "and/or" behaviours = defect.',
     '2. IDs ' + q('<MODULE>-FR-NNN') + ' / ' + q('<MODULE>-NFR-NNN') + ', unique.' + (BASELINE ? ' Existing file (baseline present): an existing ID renumbered, reused for another behaviour, or deleted while its Source still resolves = defect; a FR whose Source starts with ' + q('contract:') + ' must be unchanged.' : ''),
@@ -738,12 +741,14 @@ function authorVerifyPrompt(b, written, round, prev) {
     '7. Host trust boundary: if the host rules declare an authority / trust boundary (e.g. server-authoritative outcomes), a requirement that violates it = defect.',
     '8. Coverage: every responsibility key → ≥1 FR/NFR or ' + q('## Data & constants') + ' row whose Source cites the key\'s GDD heading, or an ' + q('## Out of scope') + ' line naming it and the receiving module, or (file with ' + q('origin: reverse-engineered') + ' only) a ' + q('## Drift vs GDD') + ' entry citing that heading — a code-cited FR duplicated by a new GDD-cited FR for the same behaviour = defect.',
     '9. Frontmatter ' + q('gdd-sources') + ' lists every GDD file the FRs cite; ' + q('tdd-source') + ' absent unless a row still cites a TDD whose ' + q('gdd-sources') + ' lists no file of this run (legacy, out of scope); ' + q('## Data & constants') + ' rows are literal + cited (or ' + q('N/A — <reason>') + ').',
+    '10. Foundation vocabulary: a module with ' + q('"band": "foundation"') + ' in the approved module blueprint (path above) follows ' + q('.claude/ndvkit/agents/spec-writer.md') + ' §Module boundary discipline (game names only inside Source quotes, module-id columns and Out of scope; no game-specific list as a Data row) — on in-scope rows and on every Contract surface / Consumer obligations row of that module.',
   ];
   if (b.changed.length) {
-    checks.push('10. Drift: every drift entry applied — literal change → FR rewritten to the new literal, same ID; ' + q('removed') + ' → FR re-cited to the heading the content moved to, or kept with ' + q('decision: ' + A.date + ' — "<decision>"') + ' when the entry carries ' + q('decision') + ', or deleted (and listed in the writer\'s removed).');
+    checks.push('11. Drift: every drift entry applied — literal change → FR rewritten to the new literal, same ID; ' + q('removed') + ' → FR re-cited to the heading the content moved to, or kept with ' + q('decision: ' + A.date + ' — "<decision>"') + ' when the entry carries ' + q('decision') + ', or deleted (and listed in the writer\'s removed).');
   }
   return prompt([
     roleHeader('adversarial requirement verifier for batch ' + b.id + ' — default to "defect" when unsure', true),
+    pathsBlock(),
     section('Files', written.map(w => '- ' + w.id + ': ' + q(w.path)).join('\n') + '\nTemplate: ' + q(C.templates + '/requirement-template.md') + ' · GDD files: ' + b.files.map(x => q(x)).join(', ')),
     section('Inputs', [
       'Responsibilities: ' + js(b.modules.map(m => ({ module: m.id, keys: m.responsibilities.map(r => ({ key: r.key, cite: r.cite })) }))),
@@ -827,6 +832,11 @@ async function runAuthor() {
   noteBaseline();
   // Each decision / deferred gap carries its owner modules; writer + verifier apply it only there.
   const tag = x => {
+    if (strs(x.modules).length) {
+      const given = strs(x.modules).filter(id => mods.some(m => m.id === id));
+      if (!given.length) note('Write: ' + (x.gapId || x.cite) + ' — modules ' + strs(x.modules).join(', ') + ' not in this run; not routed');
+      return Object.assign({}, x, { modules: given, scoped: true });
+    }
     const owners = ownersOf(x, mods);
     if (owners.length && !exactOwners(x, mods).length) {
       note('Write: ' + (x.gapId || x.cite) + ' — no responsibility cites its exact anchor; routed to every module citing ' + fileOf(x.cite) + ': ' + owners.join(', '));
@@ -841,7 +851,7 @@ async function runAuthor() {
   const batches = makeBatches(mods, decisions, deferred, changed);
   note('Write: ' + mods.length + ' module(s) in ' + batches.length + ' batch(es) of ≤' + BATCH_SIZE + ': ' + batches.map(b => b.id + '[' + b.modules.map(m => m.id).join(',') + ']').join(' '));
   const routed = x => batches.some(b => b.decisions.indexOf(x) >= 0 || b.deferred.indexOf(x) >= 0);
-  decisions.concat(deferred).filter(x => !routed(x)).forEach(x => {
+  decisions.concat(deferred).filter(x => !routed(x) && !x.scoped).forEach(x => {
     note('Write: ' + (x.gapId || x.cite) + ' cites a GDD file no module of this run cites — not routed to any writer');
   });
   changed.forEach(x => {

@@ -34,7 +34,7 @@ tiên; domain host không define → kit default rules tại `.claude/ndvkit/rul
    option: (a) behaviour của code là chủ đích → viết lại FR theo as-built (value cite symbol đã
    mở trong session, R3); (b) spec mới là chủ đích → finding quay về code-fix
    (`/ndv-audit-fix`), spec giữ nguyên; (c) GDD nói khác code → quyết định thượng nguồn: không
-   sửa FR ở đây, route `/ndv-gdd-to-spec <Feature> --update` sau khi Design sửa GDD
+   sửa FR ở đây, route `/ndv-gdd-to-spec <blueprint-path> <Feature> --update` sau khi Design sửa GDD
    (`<Feature>` theo frontmatter `gdd-sources` của requirement.md; legacy chỉ có `tdd-source` →
    feature trong path đó `<tddRoot>/<Feature>/…`; `gdd-sources: []` (as-built) → AskUserQuestion
    GDD file nào nói khác code — không đoán feature).

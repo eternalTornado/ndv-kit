@@ -84,6 +84,13 @@ sửa GDD trước (R3).
 - If the host rules declare an authority/trust boundary (e.g. server-authoritative outcomes), a
   requirement that violates it is INVALID — rewrite to conform (e.g. intent-send +
   render-resolved-result).
+- Module có `band: "foundation"` trong blueprint đã approve (path orchestrator truyền, mặc định `<matrixRoot>/blueprint.json`) (MD rules của
+  `module-design.md`): Requirement text, Data `Name`, Contract `Cần` dùng từ vựng project-agnostic
+  ("registered state owner", "currency id") — tên riêng của game chỉ nằm trong literal quote của
+  Source, cột module id và `## Out of scope`. List / giá trị đặc thù game (danh sách currency,
+  entity được pool, key save) KHÔNG thành Data row của module Foundation: một consumer → Consumer
+  obligations row của module này; ≥2 consumer → `## Out of scope` nêu module `game` nhận. Quote
+  được cắt ngắn trong câu, miễn không bỏ điều kiện WHEN/IF.
 
 Invariant (all modes): a requirement whose Source starts with `contract:` is never deleted or
 rewritten by a forward or as-built pass. Its consumer row no longer exists → return it as

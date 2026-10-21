@@ -1,4 +1,4 @@
-# ndvkit — GDD → Spec (EARS) + ModuleMatrix → Plan → Implement pipeline
+# ndvkit — GDD → Module Blueprint → Spec (EARS) + ModuleMatrix → Plan → Implement pipeline
 
 Bộ agents + skills PORTABLE cho vòng đời feature game project, format theo
 [Claude-Code-Game-Studios](https://github.com/Donchitos/Claude-Code-Game-Studios) `.claude/`.
@@ -52,7 +52,13 @@ Sau khi clone:
 
 ```text
 <gddRoot>/**                                (Design — nguồn duy nhất của gameplay truth)
-  │  /ndv-gdd-to-spec   [Workflow: skills/ndv-gdd-to-spec/workflow.js — stage analyze → author → specify;
+  │  /ndv-blueprint     [agent: module-architect — Mode blueprint (author) + Mode blueprint-review (reviewer độc lập);
+  │                      script ndv_blueprint.py: --code-graph · --check · --render · --approve]
+  │     gate (user): decision mở (boundary / gdd-gap / foundation / project) + approve report
+  ▼
+<matrixRoot>/blueprint.json + blueprint.html (module blueprint: band Foundation tái dùng cross-project ở trên cùng →
+  │                                           Layer 1..n, core loop band, deps consumer → owner; html script sinh)
+  │  /ndv-gdd-to-spec   [Workflow: skills/ndv-gdd-to-spec/workflow.js — scope layer → analyze → author → specify per layer;
   │                      agent: spec-writer, module-architect + verifier nội bộ workflow]
   │     gate A (user): module mapping + GDD gap        gate B (user): EARS ambiguity + contract-gap
   ▼
@@ -73,7 +79,7 @@ Sau khi clone:
 /ndv-module-matrix     — maintenance: re-sync toàn bộ từ spec + code (không arg), re-derive một <module-id>
                          từ code, --verify.
 /ndv-sync — delta orchestrator: GDD/spec/module/code đổi → detect drift → route đúng step downstream
-            (chain: GDD → requirement.md (+ modules.json) → specify.md → plan.md → tasks.md → code).
+            (chain: GDD → blueprint.json → requirement.md (+ modules.json) → specify.md → plan.md → tasks.md → code).
 Mọi skill trong kit đều IDEMPOTENT (create-or-update): chạy lại trên artifact đã tồn tại = update mode.
 
 Estate-wide audit (ngoài vòng per-module — CÙNG skill /ndv-audit-code, khác scope):
@@ -91,14 +97,36 @@ Brownfield adoption (add kit vào project giữa chừng):
 /ndv-onboard reverse-doc  [agent: spec-writer — Mode as-built]                                                       → requirement as-built (origin: reverse-engineered)
 ```
 
-### `/ndv-gdd-to-spec` — một workflow, ba stage
+### `/ndv-blueprint` — kiến trúc module trước spec
 
-`/ndv-gdd-to-spec <gdd-path-or-feature-name> [<module-id>...] [--update]` — gọi skill = user opt-in
-multi-agent orchestration (Workflow tool). MỘT script `skills/ndv-gdd-to-spec/workflow.js`, chạy ba
-lần theo `args.stage`; main session hỏi user giữa các stage (AskUserQuestion), agent trong workflow
-không hỏi. `--update` (hoặc tự nhận khi requirement.md đã list GDD file trong `gdd-sources`, hoặc
-requirement.md legacy có `tdd-source` trỏ TDD cite GDD file đó) = update mode; `[<module-id>...]` =
-lọc module.
+`/ndv-blueprint [<gdd-folder>] [--update]` — đọc TOÀN BỘ GDD folder, đề xuất bộ module theo
+[`rules/Shared/module-design.md`](rules/Shared/module-design.md) (MD rules), ghi
+`<matrixRoot>/blueprint.json` (data SoT, `module-architect` Mode blueprint) → script check (schema,
+id, cycle, Foundation không depend `game`, cite GDD + code, đối chiếu modules.json) → reviewer độc lập
+(`module-architect` Mode blueprint-review) → script render `blueprint.html` theo
+[`templates/blueprint-template.html`](templates/blueprint-template.html) (format service blueprint:
+band core loop có stage highlight → band Foundation → Layer 1..n, node tag NEW / EXTEND / REBUILD /
+EXISTING, edge consumer → owner kèm contract, bảng module / deps / decisions / out of scope) → gate
+user: trả lời decision mở rồi approve (`ndv_blueprint.py --approve`, chỉ skill set). Brownfield:
+`--code-graph` đưa SCC của code hiện có cho architect — mỗi SCC là MỘT module tới khi user chọn
+rebuild. Sau approve, `/ndv-gdd-to-spec` lấy blueprint làm catalog module (Mode mapping không đề
+xuất module ngoài blueprint) và `spec-writer` viết module band `foundation` bằng từ vựng
+project-agnostic.
+
+### `/ndv-gdd-to-spec` — theo step, từng layer của blueprint
+
+`/ndv-gdd-to-spec <blueprint-path> [<gdd-path-or-feature-name>] [--update]` — gọi skill = user opt-in
+multi-agent orchestration (Workflow tool). `<blueprint-path>` = `blueprint.json` đã approve (hoặc
+folder chứa nó; không arg → `<matrixRoot>/blueprint.json`); GDD của run mặc định = `gddSources` của
+blueprint, argument GDD chỉ thu hẹp. Steps: blueprint gate (`ndv_blueprint.py --check`) → **scope
+gate LUÔN hỏi**: một / nhiều layer (Foundation row, Layer k, hoặc module id) hay toàn bộ layer →
+scout → stage `analyze` MỘT lần cho cả scope (`moduleFilter` = module của scope) → Gate A → per
+layer theo thứ tự Foundation → Layer 1..n: `author` → Gate B → `specify` → checkpoint (tiếp layer kế
+/ dừng). Owner viết trước consumer nên contract tới layer dưới đã có requirement.md. MỘT script
+`skills/ndv-gdd-to-spec/workflow.js` chạy theo `args.stage`; main session hỏi user giữa các stage
+(AskUserQuestion), agent trong workflow không hỏi. `--update` (hoặc tự nhận khi requirement.md đã
+list GDD file trong `gdd-sources`, hoặc requirement.md legacy có `tdd-source` trỏ TDD cite GDD file
+đó) = update mode.
 
 | Stage | Làm gì | Gate sau stage |
 |---|---|---|
@@ -123,6 +151,9 @@ chạy cùng các stage bằng Task theo prompt/schema trong `workflow.js`. Neve
   [Model routing](#model-routing).
 - **Protocol sống trong file agent**, spawn prompt chỉ mang role · scope · paths — skill không
   restate contract của agent.
+- **Một agent, hai vai**: `module-architect` Mode blueprint-review và `code-auditor` VERIFIER là
+  instance MỚI của cùng agent (độc lập với author/finder) — ngoại lệ có chủ đích của "resume, không
+  respawn".
 - **Workflow**: chỉ `/ndv-gdd-to-spec` chạy Workflow tool; agent trong workflow không hỏi user —
   main session hỏi giữa các stage.
 - **Model**: mỗi spawn line của skill ghi model cụ thể (`model: <x>` trong Task call) theo
@@ -149,6 +180,12 @@ trước khi chạy bất kỳ skill nào. `verifyNote` là hook host-tooling DU
 nghĩa để verify build/compile; kit không tự có test runner hay build script riêng.
 
 ## Checker script
+
+`skills/ndv-blueprint/scripts/ndv_blueprint.py` — Python 3.8+, stdlib only, import resolver của
+`ndv_check.py`: `--code-graph` (SCC type-reference dưới `codeRoots`), `--check` (exit 1 = blocking),
+`--render` (sinh `blueprint.html`, deterministic), `--approve <date>` (từ chối khi còn blocking /
+decision mở). Dùng bởi `/ndv-blueprint`, `/ndv-gdd-to-spec` Phase 0, `/ndv-module-matrix` Phase 2,
+`/ndv-sync` Phase 1.
 
 `skills/ndv-sync/scripts/ndv_check.py` — Python 3.8+, stdlib only, chạy từ repo root của host:
 `python3 .claude/ndvkit/skills/ndv-sync/scripts/ndv_check.py` (Windows: `python` / `py -3`). Đọc
@@ -182,6 +219,9 @@ Ba mode standalone (mỗi mode chạy một mình, bỏ qua các cite check ở 
 │   ├── code-auditor.md        # FINDER/VERIFIER worker cho /ndv-audit-code (roles, không phải hai agent)
 │   └── audit-fixer.md         # fix-executor worker cho /ndv-audit-fix
 ├── skills/                    # <name>/SKILL.md
+│   ├── ndv-blueprint/
+│   │   ├── SKILL.md
+│   │   └── scripts/ndv_blueprint.py   # --code-graph · --check · --render · --approve
 │   ├── ndv-gdd-to-spec/
 │   │   ├── SKILL.md
 │   │   └── workflow.js        # Workflow script — args.stage: analyze | author | specify; hằng MODEL
@@ -196,6 +236,7 @@ Ba mode standalone (mỗi mode chạy một mình, bỏ qua các cite check ở 
 │   └── ndv-sync/
 │       └── scripts/ndv_check.py   # checker deterministic: doc-cite · code-cite · contract-gap · deps · --reanchor · --refresh-status · --render · --inventory
 └── templates/
+    ├── blueprint-template.html      # view của blueprint.json — ndv_blueprint.py --render inject data
     ├── requirement-template.md      # EARS patterns + Source forms + Data & constants
     ├── specify-template.md
     ├── plan-template.md
@@ -208,7 +249,8 @@ Thứ tự theo pipeline. `argument-hint` khớp frontmatter của từng `SKILL
 
 | Skill | Arguments | Agent spawn | Output | Gate/ghi chú |
 |---|---|---|---|---|
-| `/ndv-gdd-to-spec` | `<gdd-path-or-feature-name> [<module-id>...] [--update]` | Workflow `workflow.js` (stage analyze → author → specify): `spec-writer`, `module-architect` + verifier nội bộ workflow | `<matrixRoot>/modules.json` (+ `modules.md` script render) + `<specsRoot>/<MODULE>/requirement.md` + `specify.md` | gate A: module mapping + GDD gap; gate B: EARS ambiguity + `contract-gap`; specify.md chỉ ghi khi zero marker; matrix cycle = blocking; never commit |
+| `/ndv-blueprint` | `[<gdd-folder>] [--update]` | `module-architect` (Mode blueprint + instance riêng Mode blueprint-review) | `<matrixRoot>/blueprint.json` + `blueprint.html` (script render) | gate: decision mở + defect review còn lại + approve (`--approve`, chỉ skill set); check blocking chặn gate (trừ `approval-void` / `matrix-band-violation` — hỏi ở gate); never commit |
+| `/ndv-gdd-to-spec` | `<blueprint-path> [<gdd-path-or-feature-name>] [--update]` | Workflow `workflow.js` (scope layer → stage analyze một lần → author → specify per layer): `spec-writer`, `module-architect` + verifier nội bộ workflow | `<matrixRoot>/modules.json` (+ `modules.md` script render) + `<specsRoot>/<MODULE>/requirement.md` + `specify.md` | gate A: module mapping + GDD gap; gate B: EARS ambiguity + `contract-gap`; specify.md chỉ ghi khi zero marker; matrix cycle = blocking; never commit |
 | `/ndv-module-matrix` | `[<module-id>] [--verify]` | `module-architect` | `<matrixRoot>/modules.json` (data SoT) + `modules.md` (script render) | maintenance (luồng chính register qua `/ndv-gdd-to-spec`): không arg = full re-sync từ spec + code; `<module-id>` = re-derive từ code; layer không cycle; derive `status` bằng script (§Status lifecycle) |
 | `/ndv-specify` | `<module-id> [--from-audit <report-path> [--ids F-001,F-002]]` | — (inline, compose theo `spec-writer` §Mode compose-specify; `spec-writer` cho contract back-propagation) | `<specsRoot>/<MODULE>/specify.md` | single-module: clarification đã Defer, sửa requirement, contract back-propagation (`contract-gap` nêu trong report); owner của spec-fix; zero `NEEDS CLARIFICATION` |
 | `/ndv-plan` | `<module-id>` | — (inline) | `<specsRoot>/<MODULE>/plan.md` | user approve (AskUserQuestion) |
@@ -229,7 +271,7 @@ phải hai agent. Cột Model: frontmatter (default) → routing per dispatch th
 | Agent | Model | Tools | Dùng bởi | Quyền trên code |
 |---|---|---|---|---|
 | `spec-writer` | `opus` → sonnet cho back-propagation, cite-only | Read, Glob, Grep, Write, Edit | `/ndv-gdd-to-spec` (workflow: Mode forward / fix / back-propagation / compose-specify); `/ndv-onboard` (`reverse-doc`, Mode as-built); `/ndv-specify` (contract back-propagation); `/ndv-sync` (cite-only) | READ-ONLY (ghi requirement.md + specify.md, không ghi code) |
-| `module-architect` | `opus` → sonnet cho register, `<module-id>`, `--verify` fallback | Read, Glob, Grep, Write, Edit, Bash | `/ndv-gdd-to-spec` (workflow: Mode mapping read-only, Mode register); `/ndv-module-matrix`; `/ndv-onboard` (`matrix`, Mode brownfield) | READ-ONLY (ghi `modules.json`) |
+| `module-architect` | `opus` → fable cho blueprint-review; sonnet cho register, `<module-id>`, `--verify` fallback | Read, Glob, Grep, Write, Edit, Bash | `/ndv-blueprint` (Mode blueprint, Mode blueprint-review read-only); `/ndv-gdd-to-spec` (workflow: Mode mapping read-only, Mode register); `/ndv-module-matrix`; `/ndv-onboard` (`matrix`, Mode brownfield) | READ-ONLY (ghi `blueprint.json`, `modules.json`) |
 | `module-implementer` | `sonnet` → opus MỘT lần sau vòng compile-fix fail thứ 2 của một phase | Read, Glob, Grep, Write, Edit, Bash | `/ndv-implement` | WRITE |
 | `code-auditor` | `fable` → sonnet cho FINDER chỉ có lens `naming` và/hoặc `ui` | Read, Grep, Glob, Bash | `/ndv-audit-code` — vai FINDER và vai VERIFIER | READ-ONLY |
 | `audit-fixer` | `sonnet` → opus cho cluster chứa finding `blocker`/`critical`; MỘT lần thử opus sau giới hạn verify 2 vòng | Read, Glob, Grep, Write, Edit, Bash | `/ndv-audit-fix` | WRITE |
@@ -256,7 +298,7 @@ workflow của `/ndv-gdd-to-spec` dùng hằng `MODEL` đầu `workflow.js`.
 | Agent / role | Frontmatter | Routing per dispatch |
 |---|---|---|
 | `spec-writer` | `opus` | forward / as-built / compose-specify / fix: opus · back-propagation, cite-only: sonnet |
-| `module-architect` | `opus` | mapping / full / brownfield: opus · register, `<module-id>`, `--verify` fallback: sonnet |
+| `module-architect` | `opus` | blueprint / mapping / full / brownfield: opus · blueprint-review: fable (instance độc lập, khác model author) · register, `<module-id>`, `--verify` fallback: sonnet |
 | `module-implementer` | `sonnet` | sonnet; sau vòng compile-fix fail thứ 2 của một phase → MỘT instance mới trên opus mang error delta trước khi báo user |
 | `code-auditor` | `fable` | VERIFIER: fable · FINDER: fable, trừ FINDER chỉ có lens `naming` và/hoặc `ui` → sonnet |
 | `audit-fixer` | `sonnet` | sonnet; cluster chứa finding `blocker`/`critical` → opus; hết giới hạn verify 2 vòng → MỘT lần thử mới trên opus trước khi báo user |
@@ -304,7 +346,7 @@ phải link, nên bản cũ trong `.claude/agents/` không tự cập nhật the
 Host có artifact từ pipeline còn TDD (`/ndv-sync`, `/ndv-onboard status` báo `legacy-tdd`):
 
 1. Mỗi feature có requirement.md còn cite TDD (`tdd-source`, Source trỏ `<tddRoot>/…`):
-   `/ndv-gdd-to-spec <Feature> --update` — stage author re-cite sang GDD anchor mà TDD đó quote
+   `/ndv-gdd-to-spec <blueprint-path> <Feature> --update` — stage author re-cite sang GDD anchor mà TDD đó quote
    (`spec-writer` §Mode forward); câu TDD mang `decision:` → giữ decision (kèm GDD anchor của
    section; GDD nay có literal cho điểm đó → cite GDD), không hỏi lại; không có GDD cite lẫn
    decision → `NEEDS CLARIFICATION`. Không còn row nào cite TDD → xóa `tdd-source`; specify.md
@@ -323,6 +365,7 @@ Host có artifact từ pipeline còn TDD (`/ndv-sync`, `/ndv-onboard status` bá
 
 | Artifact | Owner tạo/update | Gate trước bước sau |
 |---|---|---|
+| `<matrixRoot>/blueprint.json` (+ `blueprint.html` view) | `/ndv-blueprint` (`module-architect` Mode blueprint ghi data; `ndv_blueprint.py` render + set approval) | **user approve** (AskUserQuestion) — mọi decision có `chosen`, script `--check` không blocking; `/ndv-gdd-to-spec` hỏi trước khi chạy không có blueprint approve |
 | `<matrixRoot>/` (`modules.json` data SoT + `modules.md` view) | `/ndv-gdd-to-spec` (stage author, `module-architect` Mode register) + `/ndv-module-matrix` (maintenance) ghi `modules.json` — field `status` là giá trị DERIVE bằng script theo §Status lifecycle (`implemented`, yêu cầu `tasks.md` hết task `- [ ]` → `planned` → `specced` → `proposed`); refresh bằng `ndv_check.py --refresh-status --write`, không spawn agent | gate A (user confirm module mapping) trước register; layer assignment không cycle |
 | `<specsRoot>/<MODULE>/requirement.md` | `/ndv-gdd-to-spec` (forward); `/ndv-specify` (write-back answer, contract back-propagation); `/ndv-onboard reverse-doc` (as-built) | gate B (user): EARS ambiguity + `contract-gap` trước khi compose specify.md; GDD gap Defer ở gate A → `NEEDS CLARIFICATION` còn trong file, chờ `/ndv-specify` |
 | `<specsRoot>/<MODULE>/specify.md` | `/ndv-gdd-to-spec` (stage specify); `/ndv-specify` (single-module, kể cả spec-fix qua `--from-audit`) | zero `NEEDS CLARIFICATION` còn sót; `contract-gap` còn mở nêu trong report |

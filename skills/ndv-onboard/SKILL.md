@@ -46,7 +46,7 @@ When this skill is invoked:
    + output hai bước trên + `## Recommended next steps`) và chat summary: tình trạng từng
    tier, gap lớn nhất, route đề xuất — Option 2 nếu chưa có matrix, Option 3 cho module thiếu
    spec, `/ndv-audit-code current` cho estate review sâu, `/ndv-sync` cho drift,
-   `/ndv-gdd-to-spec <Feature> --update` cho `legacy-tdd` (requirement.md as-built: Option 3).
+   `/ndv-gdd-to-spec <blueprint-path> <Feature> --update` cho `legacy-tdd` (requirement.md as-built: Option 3).
 
 ## Option 2 — Generate module matrix (reverse từ code)
 

@@ -20,7 +20,7 @@ Bộ rules DEFAULT của kit — dùng khi project host KHÔNG tự define rules
 
 | Nhóm | Nội dung |
 |---|---|
-| `Shared/` | Cross-stack: `constitution` (principles + writing + governance), `ai-discipline` (R1–R5, R7 — worker core, mọi sub-agent đọc) + `ai-discipline-session` (R6, R8–R10 — main session), `id-plan` (id allocation invariants), `coding-style`, `security`. |
+| `Shared/` | Cross-stack: `constitution` (principles + writing + governance), `ai-discipline` (R1–R5, R7 — worker core, mọi sub-agent đọc) + `ai-discipline-session` (R6, R8–R10 — main session), `id-plan` (id allocation invariants), `module-design` (MD rules — ranh giới module, band Foundation, layering), `coding-style`, `security`. |
 | `Unity/` | Client Unity: `constitution` (engine constraints), `conventions` (naming), `coding-style` (C#), `module-constraints` (world/module/hot-path), `naming-ui-toolkit`, `ui-theming` (reskin/token), `asset-structure`, `security` (trust boundary), `known-pitfalls`. Project không dùng Unity → bỏ qua nhóm này. |
 | `Server/` | BE Go/PostgreSQL: `server.md` (structure), `db.md` (schema). Project không có BE hoặc dùng stack khác → bỏ qua. |
 

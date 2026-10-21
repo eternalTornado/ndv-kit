@@ -1,6 +1,6 @@
 ---
 name: ndv-module-matrix
-description: "Maintenance ModuleMatrix của ndvkit: module dependency graph theo waterfall layer (L0 Foundation → Ln). Data ở <matrixRoot>/modules.json; view modules.md + field status do script ndv_check.py sinh (không tốn agent). Đăng ký module từ GDD nằm trong /ndv-gdd-to-spec — skill này: full re-sync từ specs + code (không arg), re-derive một module từ code (<module-id>), --verify. Dùng khi module mới xuất hiện trong code, dependency đổi, hoặc sau implement."
+description: "Maintenance ModuleMatrix của ndvkit: module dependency graph theo waterfall layer (L0 → Ln, topological — band Foundation nằm ở blueprint). Data ở <matrixRoot>/modules.json; view modules.md + field status do script ndv_check.py sinh (không tốn agent). Đăng ký module từ GDD nằm trong /ndv-gdd-to-spec — skill này: full re-sync từ specs + code (không arg), re-derive một module từ code (<module-id>), --verify. Dùng khi module mới xuất hiện trong code, dependency đổi, hoặc sau implement."
 argument-hint: "[<module-id>] [--verify]"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Write, Edit, Bash, Task, AskUserQuestion, TodoWrite
@@ -45,6 +45,9 @@ specs, contract docs, code — orchestrator không đọc trước các file đ�
 2. Sanity-check: every `deps[]`/`plannedDeps[]` entry exists as a module id; `depEvidence`
    keys equal `deps`, `plannedDepEvidence` keys equal `plannedDeps`; each layer-N module only
    references layers < N over `deps ∪ plannedDeps`; `paths` không chồng nhau.
+   `<matrixRoot>/blueprint.json` có → `python3 .claude/ndvkit/skills/ndv-blueprint/scripts/ndv_blueprint.py
+   --check`: `matrix-band-violation` (module Foundation depend module `game`) = blocking finding;
+   `edge-undeclared` / `unlisted-in-blueprint` → report, route `/ndv-blueprint --update`.
 3. Report: layer table (layer → modules), new/changed modules, cycle or drift findings
    (Finding/Evidence/Impact), status changes script in ra, paths (`modules.json`, `modules.md`).
 

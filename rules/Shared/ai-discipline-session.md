@@ -61,6 +61,8 @@ rules. Khi host chưa có, default của kit:
 | Id allocation invariants | `Shared/id-plan.md` (giá trị cụ thể: host rules) |
 | Naming per stack | stack rules (`Unity/conventions.md`, `Server/server.md`…) |
 | Trust boundary (authority) | `Unity/security.md` |
+| Module architecture đã approve (band, ranh giới, deps thiết kế) | `<matrixRoot>/blueprint.json` (`/ndv-blueprint`) |
+| Luật thiết kế module (MD rules) | `Shared/module-design.md` |
 | Module dependency hiện trạng | `<matrixRoot>/modules.json` (register, pipeline sinh) |
 | Module contract per module | `<specsRoot>/<MODULE>/` artifacts |
 | GDD content (gameplay rules, balance) | `<gddRoot>/**` (Design managed) |

@@ -4,6 +4,23 @@ File này là nơi DUY NHẤT ghi amendment cho rules của kit (written rationa
 theo [Shared/constitution.md](Shared/constitution.md) §Governance). Body của rule file chỉ
 chứa current state (R9.1).
 
+## 2026-10-19 — Thêm Shared/module-design.md (MD rules) + bước /ndv-blueprint
+
+- **Rationale**: kit thêm bước 0 `/ndv-blueprint` — kiến trúc module được thiết kế và user approve
+  TRƯỚC khi viết requirement.md (trước đây `module-architect` Mode mapping tự đề xuất module từng
+  item GDD, không có góc nhìn toàn hệ thống, không phân biệt module tái dùng cross-project).
+  `Shared/module-design.md` là SoT duy nhất của luật ranh giới module (MD-01…MD-25: secret,
+  single writer, edge consumer → owner, acyclic, band Foundation vs Layer, composition root,
+  presentation, adapter SDK, brownfield SCC), tổng hợp từ research (Parnas, Martin package
+  principles, DDD, Löwy, Helix, Unity asmdef) và đo trên mutant của blueprint mẫu. `Shared/
+  ai-discipline-session.md` §R9 thêm hai row index. `agents/module-architect.md` §Layering rules
+  đổi câu "Layer 0 = foundation/framework" thành "Layer 0 = không depend module nào (topological —
+  khác band `foundation` của blueprint)"; phép tính layer không đổi.
+- **Migration**: không bắt buộc. Host đã có modules.json vẫn chạy như cũ; `/ndv-gdd-to-spec` hỏi
+  khi chưa có blueprint approve (chạy `/ndv-blueprint` trước / tiếp tục không blueprint). Host
+  muốn dùng: re-copy `agents/*.md` + symlink `skills/ndv-blueprint` (README §Activation), sửa
+  `gddRoot` trỏ đúng GDD folder, chạy `/ndv-blueprint`.
+
 ## 2026-10-10 — Bỏ tầng TDD: wording Shared/ai-discipline.md, Server/server.md + migrate host
 
 - **Rationale**: kit bỏ tầng TDD (Technical Design Document) theo quyết định của user — GDD sang
