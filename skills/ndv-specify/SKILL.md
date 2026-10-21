@@ -1,6 +1,6 @@
 ---
 name: ndv-specify
-description: "SDD specify single-module của ndvkit: tạo/refresh <specsRoot>/<MODULE>/specify.md cho MỘT module ngoài luồng chính /ndv-gdd-to-spec — clarification đã defer, requirement.md sửa ngoài workflow, spec-fix từ audit (--from-audit), contract back-propagation. Resolve ambiguity qua AskUserQuestion (answer ghi ngược vào requirement.md, cite dạng decision:); specify.md hợp lệ khi zero NEEDS CLARIFICATION. Dùng khi requirement đổi, còn clarification chờ, có contract-gap, hoặc audit kết luận code đúng, spec sai."
+description: "SDD specify single-module của ndvkit: tạo/refresh <specsRoot>/<NNN>_<MODULE>/specify.md cho MỘT module ngoài luồng chính /ndv-blueprint-to-spec — clarification đã defer, requirement.md sửa ngoài workflow, spec-fix từ audit (--from-audit), contract back-propagation. Resolve ambiguity qua AskUserQuestion (answer ghi ngược vào requirement.md, cite dạng decision:); specify.md hợp lệ khi zero NEEDS CLARIFICATION. Dùng khi requirement đổi, còn clarification chờ, có contract-gap, hoặc audit kết luận code đúng, spec sai."
 argument-hint: "<module-id> [--from-audit <report-path> [--ids F-001,F-002]]"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Write, Edit, Task, AskUserQuestion, TodoWrite
@@ -11,13 +11,15 @@ When this skill is invoked:
 ## Phase 0 — Config & rules
 
 Read `.claude/ndvkit/ndvkit.config.json` (`gddRoot`, `specsRoot`, `matrixRoot`, `templates`).
+Spec folder `<specsRoot>/<NNN>_<MODULE>/` = field `spec` của entry modules.json, chưa có → Glob
+`<specsRoot>/*_<MODULE>/` (`NNN` = thứ tự implement, README §Quy ước chung).
 Skill này chạy inline nên orchestrator tự áp rules: host `.claude/rules/**` + `CLAUDE.md` ưu
 tiên; domain host không define → kit default rules tại `.claude/ndvkit/rules/**`.
 
 ## Phase 1 — Load
 
-1. Resolve `<module-id>`; read `<specsRoot>/<MODULE>/requirement.md` (missing → fail, point at
-   `/ndv-gdd-to-spec`).
+1. Resolve `<module-id>`; read `<specsRoot>/<NNN>_<MODULE>/requirement.md` (missing → fail, point at
+   `/ndv-blueprint-to-spec`).
 2. Read existing `specify.md` if present (update mode: only requirements whose requirement.md
    source changed are reworked; IDs are stable — never renumber).
 3. `--from-audit <report-path>`: đọc các finding được `## Triage` của report đánh `spec-fix`
@@ -34,7 +36,7 @@ tiên; domain host không define → kit default rules tại `.claude/ndvkit/rul
    option: (a) behaviour của code là chủ đích → viết lại FR theo as-built (value cite symbol đã
    mở trong session, R3); (b) spec mới là chủ đích → finding quay về code-fix
    (`/ndv-audit-fix`), spec giữ nguyên; (c) GDD nói khác code → quyết định thượng nguồn: không
-   sửa FR ở đây, route `/ndv-gdd-to-spec <blueprint-path> <Feature> --update` sau khi Design sửa GDD
+   sửa FR ở đây, route `/ndv-blueprint-to-spec <blueprint-path> <Feature> --update` sau khi Design sửa GDD
    (`<Feature>` theo frontmatter `gdd-sources` của requirement.md; legacy chỉ có `tdd-source` →
    feature trong path đó `<tddRoot>/<Feature>/…`; `gdd-sources: []` (as-built) → AskUserQuestion
    GDD file nào nói khác code — không đoán feature).
@@ -57,7 +59,7 @@ Compose inline theo spec-writer §Mode compose-specify bước 2
    ≥1 measurable acceptance criterion — else specify.md is NOT written (write-back của Phase 2
    vào requirement.md vẫn giữ); report what is still open instead.
 2. **Contract back-propagation**: for every Contract surface row, Grep the `Owner FR` id in
-   `<specsRoot>/<Owning module>/requirement.md` (exact ID match — not a symbol/keyword search);
+   `<specsRoot>/<NNN>_<Owning module>/requirement.md` (exact ID match — not a symbol/keyword search);
    same for every Consumer obligations row against the consumer's requirement.md. No id, id
    not found, or module absent from `<matrixRoot>/modules.json` → `contract-gap`. Per gap
    AskUserQuestion (batch ≤4 per call): (a) add the FR to the target module (the owning module

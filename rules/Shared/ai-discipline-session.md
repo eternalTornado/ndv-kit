@@ -64,7 +64,7 @@ rules. Khi host chưa có, default của kit:
 | Module architecture đã approve (band, ranh giới, deps thiết kế) | `<matrixRoot>/blueprint.json` (`/ndv-blueprint`) |
 | Luật thiết kế module (MD rules) | `Shared/module-design.md` |
 | Module dependency hiện trạng | `<matrixRoot>/modules.json` (register, pipeline sinh) |
-| Module contract per module | `<specsRoot>/<MODULE>/` artifacts |
+| Module contract per module | `<specsRoot>/<NNN>_<MODULE>/` artifacts |
 | GDD content (gameplay rules, balance) | `<gddRoot>/**` (Design managed) |
 | Severity taxonomy (audit) | `ai-discipline.md` §R7 |
 | Audit protocol (finder/verifier, evidence, severity guide) | agent `code-auditor` |

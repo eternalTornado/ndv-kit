@@ -1,6 +1,6 @@
 ---
 module: <MODULE>
-specify-source: <specsRoot>/<MODULE>/specify.md
+specify-source: <specsRoot>/<NNN>_<MODULE>/specify.md
 approved: false               # /ndv-plan set true qua AskUserQuestion gate — không tự set
 approved-date:
 created: <yyyy-mm-dd>

@@ -1,6 +1,6 @@
 ---
 name: ndv-tasks
-description: "Bước 3 pipeline ndvkit (SDD tasks): từ plan.md đã approve tạo/refresh <specsRoot>/<MODULE>/tasks.md — ordered task list theo phase, mỗi task ≤1 file-cluster, map về FR. Gate AskUserQuestion approve trước khi /ndv-implement. Dùng khi plan mới approve hoặc plan revise."
+description: "Bước 3 pipeline ndvkit (SDD tasks): từ plan.md đã approve tạo/refresh <specsRoot>/<NNN>_<MODULE>/tasks.md — ordered task list theo phase, mỗi task ≤1 file-cluster, map về FR. Gate AskUserQuestion approve trước khi /ndv-implement. Dùng khi plan mới approve hoặc plan revise."
 argument-hint: "<module-id>"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Write, Edit, Bash, AskUserQuestion, TodoWrite
@@ -15,16 +15,18 @@ Read `.claude/ndvkit/ndvkit.config.json` (`specsRoot`, `matrixRoot`, `templates`
 host không define → dùng kit default rules tại `.claude/ndvkit/rules/**` (test policy
 default của kit: không sinh test task trừ khi user yêu cầu). Host thắng khi mâu thuẫn —
 including TEST POLICY (some projects defer tests, some require them).
+Spec folder `<specsRoot>/<NNN>_<MODULE>/` = field `spec` của entry modules.json, chưa có → Glob
+`<specsRoot>/*_<MODULE>/` (`NNN` = thứ tự implement, README §Quy ước chung).
 
 ## Phase 1 — Preconditions
 
-1. Read `<specsRoot>/<MODULE>/plan.md`; require frontmatter `approved: true`
+1. Read `<specsRoot>/<NNN>_<MODULE>/plan.md`; require frontmatter `approved: true`
    — else STOP, point at `/ndv-plan`.
 2. Read existing `tasks.md` if present. Update mode: completed tasks (`[x]`)
    are immutable history — plan deltas append/modify only unstarted tasks; if
    a delta invalidates a completed task, surface it as a rework task, do not
    silently uncheck.
-3. Read `<specsRoot>/<MODULE>/specify.md` §Contract surface (final) and
+3. Read `<specsRoot>/<NNN>_<MODULE>/specify.md` §Contract surface (final) and
    `<matrixRoot>/modules.json` (`paths` of every module; fallback `[path]`).
 
 ## Phase 2 — Decompose

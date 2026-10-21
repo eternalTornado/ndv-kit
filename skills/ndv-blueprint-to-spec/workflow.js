@@ -1,5 +1,5 @@
 export const meta = {
-  name: 'ndv-gdd-to-spec',
+  name: 'ndv-blueprint-to-spec',
   description: 'ndvkit GDD → modules.json + per-module requirement.md (EARS) + specify.md. One stage per run (args.stage: analyze | author | specify); the main session asks the user between stages.',
   phases: [
     { title: 'Analyze' },
@@ -36,7 +36,7 @@ const DEFAULT_KIT_RULES = '.claude/ndvkit/rules';
 
 // ---------- args ----------
 
-function fail(msg) { throw new Error('ndv-gdd-to-spec workflow: ' + msg); }
+function fail(msg) { throw new Error('ndv-blueprint-to-spec workflow: ' + msg); }
 function isStr(x) { return typeof x === 'string' && x.trim().length > 0; }
 function isObj(x) { return !!x && typeof x === 'object' && !Array.isArray(x); }
 function list(x) { return Array.isArray(x) ? x : []; }
@@ -47,6 +47,10 @@ function needArr(v, name, nonEmpty) {
 function needUniqueIds(xs, name) {
   const seen = {};
   xs.forEach(x => { if (seen[x.id]) fail('args.' + name + ': duplicate id ' + x.id); seen[x.id] = true; });
+}
+function needSpecDirs(xs) {
+  const missing = xs.filter(x => !isObj(A.specDirs) || !isStr(A.specDirs[x.id])).map(x => x.id);
+  if (missing.length) fail('args.specDirs has no folder for ' + missing.join(', ') + ' — allocate with ndv_check.py --spec-seq <ids> --write first');
 }
 
 const A = isObj(args) ? args : {};
@@ -60,6 +64,8 @@ if (!isObj(A.config)) fail('args.config is required (paths from .claude/ndvkit/n
 ['gddRoot', 'specsRoot', 'matrixRoot', 'templates'].forEach(k => needStr(A.config[k], 'config.' + k));
 needArr(A.config.codeRoots, 'config.codeRoots', true);
 if (A.blueprint != null) needStr(A.blueprint, 'blueprint');
+// Spec folder per module id: <specsRoot>/<NNN>_<id> — NNN = implementation order, allocated by ndv_check.py --spec-seq.
+if (A.specDirs != null && !isObj(A.specDirs)) fail('args.specDirs must be an object {<module id>: <spec folder>}');
 if (A.moduleFilter != null) needArr(A.moduleFilter, 'moduleFilter', false);
 // Snapshot of requirement.md / specify.md taken by the main session before this run (the kit never commits, so git is no baseline).
 if (A.baselineDir != null) needStr(A.baselineDir, 'baselineDir');
@@ -86,6 +92,7 @@ if (A.stage === 'analyze') {
     }
   });
   needUniqueIds(A.modules, 'modules');
+  needSpecDirs(A.modules);
   list(A.decisions).forEach((d, i) => {
     if (!isObj(d) || !isStr(d.cite) || !isStr(d.answer)) fail('args.decisions[' + i + '] needs {gapId, cite, question, answer, date}');
   });
@@ -96,6 +103,7 @@ if (A.stage === 'analyze') {
   needArr(A.modules, 'modules', true);
   A.modules.forEach((m, i) => { if (!isObj(m) || !isStr(m.id)) fail('args.modules[' + i + '] needs {id, path}'); });
   needUniqueIds(A.modules, 'modules');
+  needSpecDirs(A.modules);
   list(A.answers).forEach((a, i) => {
     if (!isObj(a) || !isStr(a.module) || !isStr(a.answer)) fail('args.answers[' + i + '] needs {module, ref, question, answer, kind?}');
     if (a.kind != null && ANSWER_KINDS.indexOf(a.kind) < 0) fail('args.answers[' + i + '].kind must be ' + ANSWER_KINDS.join(' | '));
@@ -130,6 +138,7 @@ const C = {
   contractsDoc: isStr(A.config.contractsDoc) ? A.config.contractsDoc : '',
 };
 const FILTER = list(A.moduleFilter).filter(isStr);
+const SPEC_DIRS = isObj(A.specDirs) ? A.specDirs : {};
 const BASELINE = isStr(A.baselineDir) ? A.baselineDir.trim().replace(/[\\/]+$/, '') : '';
 
 // ---------- runtime helpers ----------
@@ -167,8 +176,9 @@ function uniq(xs) {
   const seen = {};
   return xs.filter(x => { const k = String(x); if (seen[k]) return false; seen[k] = true; return true; });
 }
-function reqPath(id) { return C.specsRoot + '/' + id + '/requirement.md'; }
-function specPath(id) { return C.specsRoot + '/' + id + '/specify.md'; }
+function specDir(id) { return isStr(SPEC_DIRS[id]) ? SPEC_DIRS[id].trim().replace(/[\\/]+$/, '') : C.specsRoot + '/*_' + id; }
+function reqPath(id) { return specDir(id) + '/requirement.md'; }
+function specPath(id) { return specDir(id) + '/specify.md'; }
 function basePath(id, file) { return BASELINE + '/' + id + '/' + file; }
 // Logged once per stage: without a baseline the verifiers cannot tell "before this run" (git is no baseline — the kit never commits).
 function noteBaseline() {
@@ -247,7 +257,7 @@ const COMPOSE = obj({
 
 // ---------- prompt building blocks ----------
 
-const HEAD = 'ndvkit /ndv-gdd-to-spec — stage ' + A.stage + ' · feature ' + A.feature + ' · mode ' + A.mode + ' · date ' + A.date + '.';
+const HEAD = 'ndvkit /ndv-blueprint-to-spec — stage ' + A.stage + ' · feature ' + A.feature + ' · mode ' + A.mode + ' · date ' + A.date + '.';
 const NO_ASK = 'Never ask the user: gaps, questions and doubts go into the structured output — the main session asks the user between stages. Your output is parsed by a script.';
 const READ_ONLY = 'READ-ONLY: never create, edit, move or delete any file. Read / Glob / Grep and read-only shell (cmp, diff, ls, wc, git show, git log) only.';
 const KIND_DEFS = [
@@ -271,7 +281,7 @@ function pathsBlock() {
   return [
     'Paths (repo-root-relative, from .claude/ndvkit/ndvkit.config.json):',
     '- gddRoot: ' + q(C.gddRoot),
-    '- specsRoot: ' + q(C.specsRoot) + ' — per module ' + q('<specsRoot>/<MODULE>/requirement.md') + ', ' + q('specify.md'),
+    '- specsRoot: ' + q(C.specsRoot) + ' — per module ' + q('<specsRoot>/<NNN>_<MODULE>/requirement.md') + ', ' + q('specify.md') + ' (NNN = implementation order, allocated by the main session: never create, rename or renumber a spec folder). Folder per module id: ' + js(SPEC_DIRS) + '; an id not listed has no spec folder yet',
     '- module matrix: ' + q(C.matrixRoot + '/modules.json'),
     '- module blueprint: ' + q(C.blueprint) + ' — when present with ' + q('"approved": true') + ', it is the module catalog (ids, band, responsibilities, deps)',
     '- codeRoots: ' + C.codeRoots.map(x => q(x)).join(', '),
@@ -706,7 +716,7 @@ function writerPrompt(b) {
     section('Batch ' + b.id, [
       'Mode ' + A.mode + ' (a target requirement.md that already exists follows the Update rules, whatever the mode) · template ' + q(C.templates + '/requirement-template.md') + ' · date ' + A.date,
       'GDD files (read each ONCE for the whole batch): ' + b.files.map(x => q(x)).join(', '),
-      'Target per module: ' + q('<specsRoot>/<id>/requirement.md') + '.',
+      'Target per module: ' + b.modules.map(m => m.id + ' → ' + q(reqPath(m.id))).join(', ') + '.',
     ].join('\n')),
     section('Modules — confirmed mapping (responsibility keys with GDD cites)', js(b.modules.map(m => ({
       id: m.id, name: m.name, isNew: m.isNew, extends: m.extends, gddSections: m.gddSections, responsibilities: m.responsibilities,
@@ -788,8 +798,8 @@ function reconcilePrompt(written, runIds) {
     pathsBlock(),
     section('Files in scope', written.map(w => '- ' + w.id + ': ' + q(w.path)).join('\n') + '\nModules of this run (count as registered even if ' + q('modules.json') + ' does not list them yet): ' + runIds.join(', ')),
     section('Rule per row', [
-      '- Contract surface row (file module = consumer, Owning module = owner): find in ' + q('<specsRoot>/<owner>/requirement.md') + ' a FR/NFR that provides EXACTLY that need. Link only when (a) the ID Grep-matches as a heading ' + q('### <ID>') + ' in that file AND (b) its Requirement text provides the need — same topic is not enough. Write the ID into Owner FR.',
-      '- Consumer obligations row (file module = owner, Consumer module = consumer): same check against ' + q('<specsRoot>/<consumer>/requirement.md') + ', written into Consumer FR.',
+      '- Contract surface row (file module = consumer, Owning module = owner): find in ' + q('<specsRoot>/<NNN>_<owner>/requirement.md') + ' (folder per module id: Paths block) a FR/NFR that provides EXACTLY that need. Link only when (a) the ID Grep-matches as a heading ' + q('### <ID>') + ' in that file AND (b) its Requirement text provides the need — same topic is not enough. Write the ID into Owner FR.',
+      '- Consumer obligations row (file module = owner, Consumer module = consumer): same check against ' + q('<specsRoot>/<NNN>_<consumer>/requirement.md') + ', written into Consumer FR.',
       '- Cell already holding an ID: re-check (a) + (b); failing → ' + q('contract-gap') + '. Cell ' + q('stopgap — …') + ': leave untouched, report nothing.',
       '- Target has no requirement.md, is neither in modules.json nor in this run, or no exact FR → ' + q('contract-gap') + '.',
     ].join('\n')),

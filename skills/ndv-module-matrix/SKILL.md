@@ -1,6 +1,6 @@
 ---
 name: ndv-module-matrix
-description: "Maintenance ModuleMatrix của ndvkit: module dependency graph theo waterfall layer (L0 → Ln, topological — band Foundation nằm ở blueprint). Data ở <matrixRoot>/modules.json; view modules.md + field status do script ndv_check.py sinh (không tốn agent). Đăng ký module từ GDD nằm trong /ndv-gdd-to-spec — skill này: full re-sync từ specs + code (không arg), re-derive một module từ code (<module-id>), --verify. Dùng khi module mới xuất hiện trong code, dependency đổi, hoặc sau implement."
+description: "Maintenance ModuleMatrix của ndvkit: module dependency graph theo waterfall layer (L0 → Ln, topological — band Foundation nằm ở blueprint). Data ở <matrixRoot>/modules.json; view modules.md + field status do script ndv_check.py sinh (không tốn agent). Đăng ký module từ GDD nằm trong /ndv-blueprint-to-spec — skill này: full re-sync từ specs + code (không arg), re-derive một module từ code (<module-id>), --verify. Dùng khi module mới xuất hiện trong code, dependency đổi, hoặc sau implement."
 argument-hint: "[<module-id>] [--verify]"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Write, Edit, Bash, Task, AskUserQuestion, TodoWrite
@@ -58,10 +58,13 @@ suy. Đánh giá theo thứ tự, lấy dòng đầu khớp:
 
 | status | Điều kiện |
 |---|---|
-| `implemented` | có source file dưới `paths` ∧ `<specsRoot>/<MODULE>/tasks.md` không còn task `- [ ]` (không có tasks.md = đạt — module brownfield) ∧ report module mới nhất `<auditReportRoot>/<MODULE>-*.md` không có verdict `FAIL` (chưa có report = đạt) |
-| `planned` | `<specsRoot>/<MODULE>/plan.md` có frontmatter `approved: true` |
-| `specced` | `<specsRoot>/<MODULE>/requirement.md` tồn tại |
+| `implemented` | có source file dưới `paths` ∧ `<specsRoot>/<NNN>_<MODULE>/tasks.md` không còn task `- [ ]` (không có tasks.md = đạt — module brownfield) ∧ report module mới nhất `<auditReportRoot>/<MODULE>-*.md` không có verdict `FAIL` (chưa có report = đạt) |
+| `planned` | `<specsRoot>/<NNN>_<MODULE>/plan.md` có frontmatter `approved: true` |
+| `specced` | `<specsRoot>/<NNN>_<MODULE>/requirement.md` tồn tại |
 | `proposed` | còn lại |
+
+Spec folder = field `spec` của entry, chưa có → Glob `<specsRoot>/*_<MODULE>/` (script:
+`spec_folder_of`).
 
 Hệ quả: module đã có code đang được mở rộng (tasks.md còn task mở) rơi về `planned`; mọi task
 `[x]` mới trở lại `implemented`.
@@ -71,15 +74,15 @@ Hệ quả: module đã có code đang được mở rộng (tasks.md còn task 
 Host không có Python → orchestrator tự đánh giá bảng trên bằng Glob/Grep rồi Edit đúng field
 `status` của entry (modules.md khi đó không được sinh lại — ghi rõ trong report).
 
-**Điểm refresh**: `/ndv-gdd-to-spec` (sau stage author + sau stage specify), `/ndv-plan` on
+**Điểm refresh**: `/ndv-blueprint-to-spec` (sau stage author + sau stage specify), `/ndv-plan` on
 Approve, `/ndv-tasks` on Approve, `/ndv-implement` Phase 3, `/ndv-audit-code module` (mọi
 verdict), `/ndv-onboard` matrix / reverse-doc.
 
 ## Update triggers (when to re-run this skill)
 
-- GDD mới / GDD đổi → KHÔNG phải skill này: `/ndv-gdd-to-spec` (mapping + register nằm trong workflow).
-- Contract surface row thêm/xóa ngoài `/ndv-gdd-to-spec` (vd `/ndv-specify` Phase 4
+- GDD mới / GDD đổi → KHÔNG phải skill này: `/ndv-blueprint-to-spec` (mapping + register nằm trong workflow).
+- Contract surface row thêm/xóa ngoài `/ndv-blueprint-to-spec` (vd `/ndv-specify` Phase 4
   back-propagation / withdraw, requirement.md sửa tay) → full pass. Withdraw ở stage specify của
-  `/ndv-gdd-to-spec` không cần: skill đó tự register lại consumer.
+  `/ndv-blueprint-to-spec` không cần: skill đó tự register lại consumer.
 - New module folder appears under `codeRoots` without a modules.json entry → full pass.
 - `ndv_check.py --checks deps` báo `dep-undeclared` / `dep-declared-not-in-code` → `<module-id>`.

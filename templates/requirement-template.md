@@ -22,7 +22,7 @@ code-source: <module path>    # CHỈ as-built — `paths` của module trong mo
 > - `<gddRoot>/<path>.md#<section>` + `decision: <yyyy-mm-dd>` — "<literal answer ≤2 câu>" —
 >   câu trả lời cho GDD gap, luôn kèm GDD anchor của câu hỏi (update pass biết feature nào own);
 >   `decision:` đứng một mình chỉ khi không có GDD context (vd intent as-built).
-> - `contract: <specsRoot>/<Module>/<file>#<section> — "<row>"` — FR back-propagated từ row
+> - `contract: <specsRoot>/<NNN>_<Module>/<file>#<section> — "<row>"` — FR back-propagated từ row
 >   Contract surface / Consumer obligations của module khác (`<file>` = specify.md của module chứa
 >   row, hoặc requirement.md khi module đó chưa có specify.md); kèm cite GDD khi GDD có nêu need.
 >   Forward pass từ GDD không xóa và không ghi đè FR này.
@@ -72,9 +72,9 @@ Source = code symbol. Không có → `N/A — <lý do>`.
 ## Contract surface
 
 Những gì module này CẦN từ module khác để thỏa các FR trên — không absorb vào own scope.
-`Owner FR` = ID FR/NFR trong `<specsRoot>/<Owning module>/requirement.md` cấp need này (Grep ID khớp,
+`Owner FR` = ID FR/NFR trong `<specsRoot>/<NNN>_<Owning module>/requirement.md` cấp need này (Grep ID khớp,
 không bịa ID); chưa có → ghi `contract-gap`. Stopgap có chủ đích: `stopgap — <Owning module> Out of
-scope`. `/ndv-gdd-to-spec` gate B hoặc `/ndv-specify` Phase 4 đóng gap.
+scope`. `/ndv-blueprint-to-spec` gate B hoặc `/ndv-specify` Phase 4 đóng gap.
 
 | Cần | Owning module | Dạng | Owner FR | FR liên quan |
 |---|---|---|---|---|
@@ -104,6 +104,6 @@ section rỗng (spec-writer §Mode forward). Mỗi chỗ code lệch GDD cover f
 
 ## Open clarifications
 
-<List `NEEDS CLARIFICATION`. Marker còn lại sau `/ndv-gdd-to-spec` (GDD gap user chọn Defer, gap
+<List `NEEDS CLARIFICATION`. Marker còn lại sau `/ndv-blueprint-to-spec` (GDD gap user chọn Defer, gap
 chưa được trả lời) → `/ndv-specify` resolve qua AskUserQuestion; specify.md chỉ được ghi khi list
 rỗng.>

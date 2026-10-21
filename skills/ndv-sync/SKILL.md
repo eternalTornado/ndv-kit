@@ -64,6 +64,9 @@ written. Detect with evidence:
    host → perform the same checks with Grep. `unowned-code` is not in the script.
    `… ndv_check.py --refresh-status` (không `--write` = dry-run) liệt kê entry modules.json có
    `status` lệch `/ndv-module-matrix` §Status lifecycle → `status-drift`.
+   `… ndv_check.py --spec-seq` (không `--write` = dry-run): `unnumbered` (spec folder không số của
+   kit bản cũ) / `seq-order` (owner cấp số sau consumer) / `seq-duplicate` / `id-duplicate` →
+   `spec-seq`.
 5. `<matrixRoot>/blueprint.json` có: `approved: false` → `blueprint-unapproved`; GDD file trong
    `gddSources` có commit (hoặc mtime) mới hơn commit (hoặc mtime) của chính blueprint.json (bước 1
    — `--approve` ghi file đó) → `blueprint-stale`; `python3 .claude/ndvkit/skills/ndv-blueprint/scripts/ndv_blueprint.py
@@ -89,14 +92,14 @@ requirement text, value, decision or task.
 ## Phase 2 — Impact report
 
 Present a table: artifact → status (`fresh | stale | broken-cite | void-approval |
-contract-gap | status-drift | legacy-line-anchor | inexact-path | unowned-code | legacy-tdd |
+contract-gap | status-drift | spec-seq | legacy-line-anchor | inexact-path | unowned-code | legacy-tdd |
 blueprint-unapproved | blueprint-stale | blueprint-broken | blueprint-drift`) →
 evidence → skill to run.
 Example routes:
 
 | Change | Route |
 |---|---|
-| GDD section edited | `/ndv-blueprint --update` khi section đổi ranh giới / system (`blueprint-stale`) → `/ndv-gdd-to-spec <blueprint-path> <Feature> --update` → then re-walk |
+| GDD section edited | `/ndv-blueprint --update` khi section đổi ranh giới / system (`blueprint-stale`) → `/ndv-blueprint-to-spec <blueprint-path> <Feature> --update` → then re-walk |
 | `blueprint-unapproved` (kể cả `approval-void`) | `/ndv-blueprint` (gate) |
 | `blueprint-broken` / `blueprint-drift` | `/ndv-blueprint --update` (thiết kế đổi có chủ đích, user re-approve) hoặc `/ndv-module-matrix` / `/ndv-specify <MODULE>` (spec / code lệch thiết kế) |
 | Module mới xuất hiện trong code | `/ndv-module-matrix` (registration + layer) |
@@ -104,9 +107,12 @@ Example routes:
 | specify.md đổi sau khi plan approved | `/ndv-plan <MODULE>` (re-approve) |
 | plan.md đổi sau khi tasks approved | `/ndv-tasks <MODULE>` (re-approve) |
 | code đổi ngoài pipeline (hotfix) | `/ndv-audit-code module <MODULE>` (drift check) |
-| Audit kết luận code đúng, spec sai (Triage `spec-fix`) | `/ndv-specify <MODULE> --from-audit <report>` — owner của việc viết lại FR theo as-built; GDD nói khác code → `/ndv-gdd-to-spec <blueprint-path> <Feature> --update` sau khi Design sửa GDD |
+| Audit kết luận code đúng, spec sai (Triage `spec-fix`) | `/ndv-specify <MODULE> --from-audit <report>` — owner của việc viết lại FR theo as-built; GDD nói khác code → `/ndv-blueprint-to-spec <blueprint-path> <Feature> --update` sau khi Design sửa GDD |
 | `status-drift` | `ndv_check.py --refresh-status --write` (không cần skill, không spawn agent) |
-| `legacy-tdd` | `/ndv-gdd-to-spec <blueprint-path> <Feature> --update` (`<Feature>` = folder trong path `tdd-source`) — re-cite sang GDD anchor; requirement.md `origin: reverse-engineered` → `/ndv-onboard reverse-doc <MODULE>` (README §Activation, mục Migrate từ kit bản cũ) |
+| `spec-seq` `unnumbered` | `ndv_check.py --spec-seq --write` — đánh số theo layer modules.json, rename + rewrite reference (cite-only edit; README §Activation, mục Migrate từ kit bản cũ) |
+| `spec-seq` `seq-order` | không đổi số (kiểu migration): report thứ tự implement thật — owner trước, `/ndv-implement` chặn qua Prerequisites |
+| `spec-seq` `seq-duplicate` / `id-duplicate` | user gộp / đổi tên folder thủ công, rồi `/ndv-sync` lại |
+| `legacy-tdd` | `/ndv-blueprint-to-spec <blueprint-path> <Feature> --update` (`<Feature>` = folder trong path `tdd-source`) — re-cite sang GDD anchor; requirement.md `origin: reverse-engineered` → `/ndv-onboard reverse-doc <MODULE>` (README §Activation, mục Migrate từ kit bản cũ) |
 | Code anchor `broken-cite`, symbol still exists elsewhere (moved/renamed file, shifted line) | cite-only edit at the owning artifact: requirement.md → `spec-writer` (Task tool, model: sonnet, Mode cite-only); specify/plan/tasks → edit the cite in place. Approved plan/tasks keep their approval (§Cite-only edit) |
 | Code anchor `broken-cite`, symbol gone (behaviour removed or replaced) | not cite-only — content drift: `/ndv-audit-code module <MODULE>`, then the owning skill of the artifact |
 | Doc/rule `broken-cite` | cite-only edit: point the cite at the file that exists on disk (rule files: `<kitRulesRoot>/…` unless the host adopted a copy under `<rulesRoot>`) |

@@ -27,6 +27,11 @@ Modes (each runs standalone -- no citation/contract/deps checks are run; exit
                      (deterministic; modules.json stays the source of truth).
   --inventory     -- read-only artifact coverage matrix + estate counts, for
                      brownfield onboarding.
+  --spec-seq [MODULE ...] -- spec folders <specsRoot>/<NNN>_<MODULE> in
+                     implementation order + seq findings; plans the next seq
+                     for MODULEs without a numbered folder (none given: numbers
+                     legacy unnumbered folders); --write applies (mkdir, or
+                     rename + rewrite references).
 
 See the CLI --help (bottom of file) for flags. Exit codes: 0 = clean (no
 broken-cite / contract-gap finding, or a mode above completed), 1 = at least
@@ -253,6 +258,44 @@ def load_modules(matrix_path, cache):
         return None, None
     ids = set(m["id"] for m in modules if isinstance(m, dict) and "id" in m)
     return modules, ids
+
+
+# ===========================================================================
+# Spec folders — <specsRoot>/<NNN>_<MODULE>/, NNN = implementation order
+# (migration-style: assigned max+1 at creation, never renumbered)
+# ===========================================================================
+
+SPEC_DIR_RE = re.compile(r"^(\d+)_([A-Za-z][A-Za-z0-9_]*)$")
+MODULE_ID_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
+SEQ_WIDTH = 3
+
+
+def list_spec_dirs(specs_root):
+    """[(seq_or_None, module_id, folder)] sorted by seq; a legacy unnumbered
+    `<MODULE>` folder has seq None and sorts last. Folders whose name is neither
+    form (e.g. `_archive`) are not spec folders."""
+    if not specs_root or not os.path.isdir(specs_root):
+        return []
+    out = []
+    for name in os.listdir(specs_root):
+        full = to_posix(os.path.join(specs_root, name))
+        if not os.path.isdir(full):
+            continue
+        m = SPEC_DIR_RE.match(name)
+        if m:
+            out.append((int(m.group(1)), m.group(2), full))
+        elif MODULE_ID_RE.match(name):
+            out.append((None, name, full))
+    return sorted(out, key=lambda t: (t[0] is None, t[0] or 0, t[1]))
+
+
+def find_spec_dir(specs_root, module_id):
+    return next((full for _seq, mid, full in list_spec_dirs(specs_root) if mid == module_id), None)
+
+
+def seq_of_folder(folder):
+    m = SPEC_DIR_RE.match(os.path.basename(folder or ""))
+    return int(m.group(1)) if m else None
 
 
 # ===========================================================================
@@ -697,7 +740,8 @@ def evaluate_contract_table(fpath, header_line, header_cells, rows, is_consumer,
                 findings.append(Finding(fpath, ln, mod_cell.strip(), "contract-gap",
                                          "owner-not-registered", "token={}".format(token)))
         if token and specs_root:
-            target = to_posix(os.path.join(specs_root, token, "requirement.md"))
+            target_dir = find_spec_dir(specs_root, token) or os.path.join(specs_root, token)
+            target = to_posix(os.path.join(target_dir, "requirement.md"))
             target_text = cache.text(target) if os.path.isfile(target) else None
             for rid in ids:
                 if target_text is None or not re.search(r"\b" + re.escape(rid) + r"\b", target_text):
@@ -708,7 +752,7 @@ def evaluate_contract_table(fpath, header_line, header_cells, rows, is_consumer,
 
 def check_contract_gap(specs_root, cache, module_ids, artifact_filter=None):
     """Locates a Contract surface / Consumer obligations table under each
-    matching heading of every <specsRoot>/<MODULE>/{requirement,specify}.md and
+    matching heading of every <specsRoot>/<NNN>_<MODULE>/{requirement,specify}.md and
     validates its Owner/Consumer FR column. Only the first table per matching
     heading is inspected (this kit's templates carry exactly one).
     `artifact_filter`, if given, restricts which requirement.md/specify.md
@@ -1401,11 +1445,11 @@ def count_tasks(lines):
 
 def spec_folder_of(module, specs_root):
     sf = module.get("spec")
-    if sf:
+    if sf and os.path.isdir(sf):
         return to_posix(sf)
     if specs_root:
-        return to_posix(os.path.join(specs_root, module["id"]))
-    return None
+        return find_spec_dir(specs_root, module["id"]) or to_posix(os.path.join(specs_root, module["id"]))
+    return to_posix(sf) if sf else None
 
 
 def module_has_source(module):
@@ -1706,7 +1750,9 @@ def render_modules_md(cfg, data):
             path = m.get("path")
             code_cell = "[{}]({})".format(escape_cell(path), rel_link(path)) if path else "—"
             spec = m.get("spec")
-            spec_cell = "[spec]({})".format(rel_link(spec)) if spec else "—"
+            seq = seq_of_folder(spec)
+            spec_label = "spec" if seq is None else str(seq).zfill(SEQ_WIDTH)
+            spec_cell = "[{}]({})".format(spec_label, rel_link(spec)) if spec else "—"
             lines.append("| {} | {} | {} | {} | {} | {} |".format(
                 label, status, deps_cell, planned_cell, code_cell, spec_cell))
         lines.append("")
@@ -1740,6 +1786,154 @@ def run_render(args, cfg, cache):
         sys.stdout.write("\n")
     else:
         sys.stdout.write("wrote {}\n".format(out_path))
+    return 0
+
+
+def rewrite_spec_refs(cfg, renames):
+    """Rewrites every `<old folder>` reference to `<new folder>` in the files
+    doc-cite scans (specs, modules.json, CLAUDE.md, rulesRoot). -> files changed."""
+    files = glob_md(cfg.get("specsRoot")) + glob_md(cfg.get("rulesRoot"))
+    matrix_path = matrix_json_path(cfg)
+    files += [p for p in (matrix_path, "CLAUDE.md") if p and os.path.isfile(p)]
+    patterns = [(re.compile(re.escape(old) + r"(?![A-Za-z0-9_])"), new) for old, new in renames]
+    changed = []
+    for path in sorted(set(files)):
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            text = f.read()
+        new_text = text
+        for pattern, new in patterns:
+            new_text = pattern.sub(new, new_text)
+        if new_text != text:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(new_text)
+            changed.append(path)
+    return changed
+
+
+def run_spec_seq(args, cfg, cache):
+    specs_root = cfg.get("specsRoot")
+    if not specs_root:
+        sys.stderr.write("ERROR: specsRoot not configured\n")
+        return 2
+    specs_root = to_posix(specs_root).rstrip("/")
+    bad = [m for m in args.spec_seq if not MODULE_ID_RE.match(m)]
+    if bad:
+        sys.stderr.write("ERROR: invalid module id(s): {}\n".format(", ".join(bad)))
+        return 2
+
+    matrix_path = matrix_json_path(cfg)
+    modules = None
+    if matrix_path and os.path.isfile(matrix_path):
+        modules, _ids = load_modules(matrix_path, cache)
+    by_id = {m["id"]: m for m in modules or [] if isinstance(m, dict) and "id" in m}
+
+    findings = []
+    numbered, legacy, seq_owner = {}, {}, {}
+    for seq, mid, full in list_spec_dirs(specs_root):
+        if seq is None:
+            legacy[mid] = full
+            continue
+        if seq in seq_owner:
+            findings.append({"kind": "seq-duplicate", "id": mid,
+                             "detail": "{} shares seq with {}".format(full, seq_owner[seq])})
+        seq_owner.setdefault(seq, full)
+        if mid in numbered:
+            findings.append({"kind": "id-duplicate", "id": mid,
+                             "detail": "{} and {}".format(numbered[mid], full)})
+        numbered.setdefault(mid, full)
+    for mid, full in legacy.items():
+        if mid in numbered:
+            findings.append({"kind": "id-duplicate", "id": mid,
+                             "detail": "{} and {}".format(numbered[mid], full)})
+
+    def layer_rank(mid):
+        layer = by_id.get(mid, {}).get("layer")
+        return (0, layer) if isinstance(layer, int) and not isinstance(layer, bool) else (1, 0)
+
+    if args.spec_seq:
+        targets = [m for m in collections.OrderedDict.fromkeys(args.spec_seq) if m not in numbered]
+    else:
+        targets = sorted((m for m in legacy if m not in numbered), key=lambda m: (layer_rank(m), m))
+
+    next_seq = max(list(seq_owner) or [0]) + 1
+    plan = []
+    for mid in targets:
+        to = "{}/{}_{}".format(specs_root, str(next_seq).zfill(SEQ_WIDTH), mid)
+        plan.append({"id": mid, "from": legacy.get(mid) if mid not in numbered else None, "to": to})
+        next_seq += 1
+
+    dirs = dict(legacy)
+    dirs.update(numbered)
+    dirs.update((p["id"], p["to"]) for p in plan)
+    planned_ids = set(p["id"] for p in plan)
+    for mid, full in sorted(legacy.items()):
+        if mid not in numbered and mid not in planned_ids:
+            findings.append({"kind": "unnumbered", "id": mid,
+                             "detail": "legacy folder {} — number it with --spec-seq --write".format(full)})
+
+    for mid in sorted(by_id):
+        seq = seq_of_folder(dirs.get(mid))
+        if seq is None:
+            continue
+        module = by_id[mid]
+        for dep in sorted(set((module.get("deps") or []) + (module.get("plannedDeps") or []))):
+            dep_seq = seq_of_folder(dirs.get(dep))
+            if dep_seq is not None and dep_seq > seq:
+                findings.append({"kind": "seq-order", "id": mid, "detail": "depends on {} ({}) numbered after it ({}) "
+                                 "— implement {} first".format(dep, str(dep_seq).zfill(SEQ_WIDTH),
+                                                               str(seq).zfill(SEQ_WIDTH), dep)})
+
+    rewritten, render_path = [], None
+    if args.write and plan:
+        renames = []
+        for p in plan:
+            if p["from"]:
+                os.rename(p["from"], p["to"])
+                renames.append((p["from"], p["to"]))
+            else:
+                os.makedirs(p["to"])
+        if renames:
+            rewritten = rewrite_spec_refs(cfg, renames)
+            if matrix_path in rewritten:
+                data = json.loads(FileCache().text(matrix_path))
+                if isinstance(data, dict) and isinstance(data.get("modules"), list):
+                    render_path = render_modules_md(cfg, data)
+
+    order = sorted(dirs.items(), key=lambda kv: (seq_of_folder(kv[1]) is None, seq_of_folder(kv[1]) or 0, kv[0]))
+    if args.json:
+        report = {
+            "mode": "spec-seq",
+            "specsRoot": specs_root,
+            "order": [{"seq": seq_of_folder(folder), "id": mid, "folder": folder} for mid, folder in order],
+            "dirs": dict(order),
+            "plan": plan,
+            "findings": findings,
+            "written": bool(args.write and plan),
+            "rewritten": rewritten,
+            "renderedModulesMd": render_path,
+        }
+        json.dump(report, sys.stdout, indent=2, ensure_ascii=False)
+        sys.stdout.write("\n")
+    else:
+        out = sys.stdout
+        out.write("# Spec order — {}\n\n".format(specs_root))
+        id_width = max([len(mid) for mid, _folder in order] or [0])
+        for mid, folder in order:
+            seq = seq_of_folder(folder)
+            out.write("{:>{w}}  {:<{n}}  {}\n".format("—" if seq is None else str(seq).zfill(SEQ_WIDTH), mid, folder,
+                                                       w=SEQ_WIDTH, n=id_width))
+        if plan:
+            out.write("\n## Plan ({})\n\n".format("applied" if args.write else "dry-run — add --write to apply"))
+            for p in plan:
+                out.write("rename {} -> {}\n".format(p["from"], p["to"]) if p["from"] else "mkdir  {}\n".format(p["to"]))
+            for path in rewritten:
+                out.write("rewrote references in {}\n".format(path))
+            if render_path:
+                out.write("wrote {}\n".format(render_path))
+        if findings:
+            out.write("\n## Findings\n\n")
+            for f in findings:
+                out.write("{}  {}: {}\n".format(f["kind"], f["id"], f["detail"]))
     return 0
 
 
@@ -2036,9 +2230,15 @@ def build_arg_parser():
                          "(deterministic)")
     p.add_argument("--inventory", action="store_true",
                     help="standalone mode: read-only artifact coverage matrix + estate counts")
+    p.add_argument("--spec-seq", nargs="*", default=None, metavar="MODULE",
+                    help="standalone mode: spec folders <specsRoot>/<NNN>_<MODULE> in implementation "
+                         "order + seq findings; MODULE ids given (in order) → plan the next seq for "
+                         "each without a numbered folder; none → plan numbering for legacy "
+                         "unnumbered folders (modules.json layer order); combine with --write to apply")
     p.add_argument("--write", action="store_true",
-                    help="apply --reanchor changes in place, and/or apply --refresh-status "
-                         "changes to modules.json (no-op without --reanchor/--refresh-status)")
+                    help="apply --reanchor changes in place, apply --refresh-status changes to "
+                         "modules.json, and/or apply the --spec-seq plan (mkdir / rename + rewrite "
+                         "references)")
     p.add_argument("--json", action="store_true", help="machine-readable output")
     return p
 
@@ -2060,6 +2260,7 @@ def main(argv=None):
         ("--refresh-status", args.refresh_status is not None),
         ("--render", args.render),
         ("--inventory", args.inventory),
+        ("--spec-seq", args.spec_seq is not None),
     ) if on]
     if len(new_modes) > 1:
         sys.stderr.write("ERROR: {} are mutually exclusive\n".format(" and ".join(new_modes)))
@@ -2069,6 +2270,8 @@ def main(argv=None):
             return run_refresh_status(args, cfg, cache)
         if args.render:
             return run_render(args, cfg, cache)
+        if args.spec_seq is not None:
+            return run_spec_seq(args, cfg, cache)
         return run_inventory(args, cfg, cache)
 
     notes = []

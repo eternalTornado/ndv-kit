@@ -1,6 +1,6 @@
 ---
 name: ndv-blueprint
-description: "Bước 0 pipeline ndvkit (architecture): GDD folder → phân tích system design → đề xuất module → <matrixRoot>/blueprint.json + blueprint.html (module blueprint: band Foundation tái dùng cross-project ở trên cùng → Layer 1..n, band core loop, edge consumer → owner). Gate: user chốt decision + approve report trước khi /ndv-gdd-to-spec viết requirement.md. Idempotent: GDD đổi = --update."
+description: "Bước 0 pipeline ndvkit (architecture): GDD folder → phân tích system design → đề xuất module → <matrixRoot>/blueprint.json + blueprint.html (module blueprint: band Foundation tái dùng cross-project ở trên cùng → Layer 1..n, band core loop, edge consumer → owner). Gate: user chốt decision + approve report trước khi /ndv-blueprint-to-spec viết requirement.md. Idempotent: GDD đổi = --update."
 argument-hint: "[<gdd-folder>] [--update]"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash, Write, Edit, Task, AskUserQuestion, TodoWrite
@@ -41,7 +41,7 @@ không restate các protocol đó.
 ## Parse arguments
 
 - `<gdd-folder>` — mặc định `<gddRoot>`. Không tồn tại → fail rõ, không bịa GDD. Nằm ngoài
-  `<gddRoot>` → AskUserQuestion: sửa `gddRoot` trong config thành folder này (`/ndv-gdd-to-spec` và
+  `<gddRoot>` → AskUserQuestion: sửa `gddRoot` trong config thành folder này (`/ndv-blueprint-to-spec` và
   doc-cite chỉ nhận cite dưới `gddRoot`) / chạy tiếp (script báo `outside-gddRoot`).
 - `gddFiles` = Glob `<gdd-folder>/**/*.md`, bỏ folder bắt đầu bằng `_` (vd `_work/` của
   gdd-forge). Rỗng → fail.
@@ -54,7 +54,7 @@ không restate các protocol đó.
    `allFiles: 0` → `codeGraph: none` (greenfield); `allFiles > 0` mà `files: 0` (stack script chưa
    hỗ trợ, hoặc chỉ có asset) → `codeGraph: unavailable` — architect tự đọc code, MD-25 không được
    script kiểm, report ghi rõ.
-3. `existing` = id có entry `<matrixRoot>/modules.json` hoặc folder `<specsRoot>/<ID>/` — frozen.
+3. `existing` = id có entry `<matrixRoot>/modules.json` hoặc folder `<specsRoot>/<NNN>_<ID>/` — frozen.
 4. Update mode: copy `bp` sang thư mục tạm (`mktemp -d`) làm `baseline` để report diff.
 
 ## Phase 2 — Author
@@ -119,8 +119,8 @@ Approve → `script --approve <date>` (từ chối khi còn blocking hoặc deci
 - Band / Layer → modules (`script --check --json` → `modules`; buildMode, role), decision đã chốt, defect còn lại, warning còn lại (kể cả
   `dismissed`), path `blueprint.json` + `blueprint.html`.
 - Update mode: diff với `baseline` — module thêm / bỏ / đổi band, edge đổi. Module bị bỏ mà còn
-  `<specsRoot>/<ID>/` hoặc entry modules.json → báo, không xóa artifact downstream. Xóa `baseline`.
-- Next: `/ndv-gdd-to-spec <blueprint-path>` — skill hỏi phạm vi layer rồi viết spec lần lượt từng
+  `<specsRoot>/<NNN>_<ID>/` hoặc entry modules.json → báo, không xóa artifact downstream. Xóa `baseline`.
+- Next: `/ndv-blueprint-to-spec <blueprint-path>` — skill hỏi phạm vi layer rồi viết spec lần lượt từng
   layer (mapping bám blueprint; GDD của run mặc định = `gddSources`; chạy từng file làm module
   Foundation bị extend lặp và owner chưa đăng ký thành `contract-gap`) → `/ndv-plan` → `/ndv-tasks` →
   `/ndv-implement`. Không commit.

@@ -1,6 +1,6 @@
 ---
 module: <MODULE>
-requirement-source: <specsRoot>/<MODULE>/requirement.md
+requirement-source: <specsRoot>/<NNN>_<MODULE>/requirement.md
 created: <yyyy-mm-dd>
 updated: <yyyy-mm-dd>
 ---
@@ -37,8 +37,8 @@ updated: <yyyy-mm-dd>
 
 ## Contract surface (final)
 
-> `Owner FR` = ID trong `<specsRoot>/<Owning module>/requirement.md` (Grep ID khớp). Row chưa có owner FR =
-> `contract-gap` — `/ndv-gdd-to-spec` gate B hoặc `/ndv-specify` Phase 4 xử lý; gap còn mở phải nêu
+> `Owner FR` = ID trong `<specsRoot>/<NNN>_<Owning module>/requirement.md` (Grep ID khớp). Row chưa có owner FR =
+> `contract-gap` — `/ndv-blueprint-to-spec` gate B hoặc `/ndv-specify` Phase 4 xử lý; gap còn mở phải nêu
 > trong report. Stopgap có chủ đích: ghi `stopgap — <Owning module> Out of scope`.
 
 | Cần | Owning module | Interface/Event cụ thể | Owner FR | FR |

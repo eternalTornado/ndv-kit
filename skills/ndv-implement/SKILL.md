@@ -12,8 +12,10 @@ When this skill is invoked:
 
 1. Read `.claude/ndvkit/ndvkit.config.json` (`specsRoot`, `matrixRoot`, `verifyNote`). Coding
    rules + precedence do agent `module-implementer` tự resolve (host `.claude/rules/**` > kit
-   `.claude/ndvkit/rules/**`).
-2. `<specsRoot>/<MODULE>/plan.md` AND `tasks.md` both have `approved: true` —
+   `.claude/ndvkit/rules/**`). Spec folder `<specsRoot>/<NNN>_<MODULE>/` = field `spec` của entry
+   modules.json, chưa có → Glob `<specsRoot>/*_<MODULE>/` (`NNN` = thứ tự implement, README §Quy
+   ước chung).
+2. `<specsRoot>/<NNN>_<MODULE>/plan.md` AND `tasks.md` both have `approved: true` —
    else STOP and point at the missing gate. Never implement from an
    unapproved artifact. (Gate này chỉ check ở đây — agent không check lại.)
 3. Prerequisites check — tasks.md §Prerequisites (section absent → use the specify.md §Contract
@@ -47,7 +49,7 @@ For each phase in tasks.md:
 
 1. Snapshot `git status --porcelain` (baseline). Spawn / resume `module-implementer` (Task
    tool, model: sonnet) với: module id, phase cần chạy, paths tới plan.md + specify.md +
-   tasks.md, write scope (module `paths` + `<specsRoot>/<MODULE>/tasks.md` + files tasks name
+   tasks.md, write scope (module `paths` + `<specsRoot>/<NNN>_<MODULE>/tasks.md` + files tasks name
    under no module's `paths` + stopgap-approved files). Hành vi (no scope expansion, test
    policy, no commit) là contract của agent — không restate trong prompt.
 2. On agent return:

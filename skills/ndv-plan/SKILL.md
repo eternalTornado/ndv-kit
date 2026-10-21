@@ -1,6 +1,6 @@
 ---
 name: ndv-plan
-description: "Bước 2 pipeline ndvkit (SDD plan): từ specify.md tạo/refresh <specsRoot>/<MODULE>/plan.md — technical design (module skeleton, types, data flow, wiring) theo module convention của project host. Kết thúc bằng gate AskUserQuestion approve; plan chưa approve thì không được implement. Dùng khi specify mới/đổi hoặc design cần revise."
+description: "Bước 2 pipeline ndvkit (SDD plan): từ specify.md tạo/refresh <specsRoot>/<NNN>_<MODULE>/plan.md — technical design (module skeleton, types, data flow, wiring) theo module convention của project host. Kết thúc bằng gate AskUserQuestion approve; plan chưa approve thì không được implement. Dùng khi specify mới/đổi hoặc design cần revise."
 argument-hint: "<module-id>"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Write, Edit, Bash, AskUserQuestion, TodoWrite
@@ -13,11 +13,12 @@ When this skill is invoked:
 Read `.claude/ndvkit/ndvkit.config.json` (`specsRoot`, `matrixRoot`,
 `templates`). Rule source: host `.claude/rules/**` + `CLAUDE.md` nếu có; domain nào
 host không define → dùng kit default rules tại `.claude/ndvkit/rules/**`. Host thắng
-khi mâu thuẫn.
+khi mâu thuẫn. Spec folder `<specsRoot>/<NNN>_<MODULE>/` = field `spec` của entry modules.json,
+chưa có → Glob `<specsRoot>/*_<MODULE>/` (`NNN` = thứ tự implement, README §Quy ước chung).
 
 ## Phase 1 — Load context
 
-1. Read `<specsRoot>/<MODULE>/specify.md` (missing or containing
+1. Read `<specsRoot>/<NNN>_<MODULE>/specify.md` (missing or containing
    `NEEDS CLARIFICATION` → fail, point at `/ndv-specify`).
 2. Read the `<matrixRoot>/modules.json` entry (layer + allowed deps) and the
    contract surface docs of every dependency.

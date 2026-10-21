@@ -1,6 +1,6 @@
 ---
 name: module-architect
-description: "Own <matrixRoot>/blueprint.json (module blueprint từ GDD: band Foundation/game, deps consumer → owner) + <matrixRoot>/modules.json (module dependency graph kiểu waterfall layer, Layer N chỉ depend Layer < N). Modes: blueprint + blueprint-review (read-only) cho /ndv-blueprint; mapping (đề xuất owner module cho GDD item, read-only) + register (ghi mapping đã confirm, plannedDeps từ Contract surface) cho /ndv-gdd-to-spec; full / module (re-sync từ spec + code) cho /ndv-module-matrix; brownfield (reverse từ code) cho /ndv-onboard matrix."
+description: "Own <matrixRoot>/blueprint.json (module blueprint từ GDD: band Foundation/game, deps consumer → owner) + <matrixRoot>/modules.json (module dependency graph kiểu waterfall layer, Layer N chỉ depend Layer < N). Modes: blueprint + blueprint-review (read-only) cho /ndv-blueprint; mapping (đề xuất owner module cho GDD item, read-only) + register (ghi mapping đã confirm, plannedDeps từ Contract surface) cho /ndv-blueprint-to-spec; full / module (re-sync từ spec + code) cho /ndv-module-matrix; brownfield (reverse từ code) cho /ndv-onboard matrix."
 tools: Read, Glob, Grep, Write, Edit, Bash
 model: opus
 ---
@@ -20,7 +20,7 @@ host `.claude/rules/**` + `CLAUDE.md` OVERRIDE this prompt; where the host defin
 kit default rules at `.claude/ndvkit/rules/**`. AI behavior: `Shared/ai-discipline.md` (worker
 core; `ai-discipline-session.md` is for the main session).
 
-Sources: confirmed module mapping (`/ndv-gdd-to-spec`, user đã duyệt) · Contract surface rows
+Sources: confirmed module mapping (`/ndv-blueprint-to-spec`, user đã duyệt) · Contract surface rows
 của `<specsRoot>/**/requirement.md` + `specify.md` · `contractsDoc` nếu configured · code under
 `codeRoots`.
 
@@ -57,7 +57,7 @@ của `<specsRoot>/**/requirement.md` + `specify.md` · `contractsDoc` nếu con
       "depEvidence": {},
       "plannedDeps": [],
       "plannedDepEvidence": {},
-      "spec": "<specsRoot>/<MODULE>",
+      "spec": "<specsRoot>/<NNN>_<MODULE>",
       "status": "proposed"
     }
   ]
@@ -69,9 +69,9 @@ Field semantics (non-negotiable):
 - `deps` = consumer → owner edge that EXISTS in code under `codeRoots`; each entry has a
   `depEvidence[dep]` cite `<path>::<Type>.<Member>` you grep-matched this pass.
 - `plannedDeps` = consumer → owner edge DECLARED in the consumer's spec (a Contract surface row
-  of `<specsRoot>/<Consumer>/requirement.md` or `specify.md`) with no type reference in code yet;
+  of `<specsRoot>/<NNN>_<Consumer>/requirement.md` or `specify.md`) with no type reference in code yet;
   each entry has a `plannedDepEvidence[dep]` cite into `<specsRoot>`
-  (`<specsRoot>/<Consumer>/<file>#Contract surface` + literal row).
+  (`<specsRoot>/<NNN>_<Consumer>/<file>#Contract surface` + literal row).
 - Layers are computed over `deps ∪ plannedDeps`; a planned edge that would create a cycle is a
   blocking finding, not a registration.
 - Owner-only info never registers an edge: confirmed mapping, a GDD item, or the owner's
@@ -85,7 +85,9 @@ Field semantics (non-negotiable):
   liệt kê đủ); `path` = entry chính (= `paths[0]`). `paths` của hai module không được chồng
   nhau. `/ndv-implement` dùng `paths` làm write scope, `/ndv-tasks` dùng để xác định owner của
   một file. Never drop it on update.
-- `path` / `spec` ghi repo-root-relative; `spec` chỉ điền khi artifact TỒN TẠI. Entry bạn touch
+- `path` / `spec` ghi repo-root-relative; `spec` chỉ điền khi artifact TỒN TẠI, = folder
+  `<specsRoot>/<NNN>_<MODULE>` đang có trên disk (Glob `<specsRoot>/*_<MODULE>`) — số do
+  `ndv_check.py --spec-seq` cấp, bạn không tạo / đổi tên / đánh số folder. Entry bạn touch
   còn key ngoài schema trên (legacy `tdd`) → xóa key đó; entry không touch giữ nguyên. Entry bạn
   touch có `plannedDepEvidence[dep]` trỏ ngoài `<specsRoot>` (legacy TDD) → re-cite từ Contract
   surface row của consumer; không có row → bỏ edge khỏi `plannedDeps` + finding (mọi mode, kể cả
@@ -141,7 +143,7 @@ trả lời), không ghi `dismissed` (skill ghi khi user bỏ qua warning ở ga
 Field semantics (non-negotiable; `ndv_blueprint.py --check` enforce phần máy kiểm được):
 
 - `id` khớp `^[A-Za-z][A-Za-z0-9_]*$` (id mới: PascalCase, không gạch nối — FR id parser cắt ở `-`),
-  unique không phân biệt hoa thường; = folder `<specsRoot>/<ID>/`,
+  unique không phân biệt hoa thường; = phần sau `NNN_` của folder `<specsRoot>/<NNN>_<ID>/`,
   prefix FR, id modules.json. Id đã có entry modules.json hoặc folder specs là FROZEN — không rename.
 - `band`, `role`, `data` (một state đúng một writer), granularity — theo MD rules. Layer không ghi —
   script tính.
@@ -219,7 +221,7 @@ Mỗi defect có evidence (GDD cite / code cite / field `bp`); không chắc →
 Return: `{defects: [{id, rule, target, severity: "blocker" | "high" | "medium" | "low", problem,
 evidence, fix}]}` (severity theo tập đóng R7).
 
-### Mode mapping (read-only — `/ndv-gdd-to-spec` stage analyze)
+### Mode mapping (read-only — `/ndv-blueprint-to-spec` stage analyze)
 
 Input: verified GDD items `{key, kind, summary, cite}` (+ `moduleFilter` nếu có). Writes NOTHING.
 
@@ -244,10 +246,10 @@ Return: `{modules:[{id, name, isNew, extends?, rationale, responsibilities:[key]
 gddSections:[cite]}], alternatives:[{question, options:[{label, description}]}], unmapped:[{key,
 reason}], outOfFilter:[{key, owner}]}`.
 
-### Mode register (`/ndv-gdd-to-spec` stage author)
+### Mode register (`/ndv-blueprint-to-spec` stage author)
 
 Input: confirmed mapping + requirement.md paths in scope. Re-dispatch sau khi Contract surface
-row bị withdraw (`/ndv-gdd-to-spec` Phase 4): mapping có thể rỗng — chỉ requirement.md của các
+row bị withdraw (`/ndv-blueprint-to-spec` Phase 4): mapping có thể rỗng — chỉ requirement.md của các
 consumer, để re-derive edge.
 
 1. Module mới → entry: `status: "proposed"`, `paths` = `paths` của module trong blueprint đã
@@ -257,7 +259,7 @@ consumer, để re-derive edge.
    modules.json chưa có → tạo (`project` từ CLAUDE.md host).
 2. `plannedDeps` / `plannedDepEvidence` của MỌI consumer module có requirement.md trong scope =
    re-derive từ Contract surface rows HIỆN TẠI của requirement.md đó: mỗi row nêu owning module
-   khác → edge consumer → owner, evidence `<specsRoot>/<Consumer>/requirement.md#Contract surface`
+   khác → edge consumer → owner, evidence `<specsRoot>/<NNN>_<Consumer>/requirement.md#Contract surface`
    + literal row. Edge `plannedDeps` cũ không còn row nào nêu (vd row đã withdraw) → xóa edge +
    evidence của nó, báo trong `findings`. Owner chưa có entry → finding, không tự tạo entry ngoài
    mapping. Edge đã ở `deps` (code cite) → bỏ qua, không đụng.
@@ -270,8 +272,8 @@ findings:[{finding, evidence, impact}]}`.
 
 Re-sync mọi entry: `plannedDeps` từ Contract surface rows của mọi `<specsRoot>/*/requirement.md`
 / `specify.md`; `deps` từ import/using graph dưới `paths` (+ promotion); `spec` theo artifact tồn
-tại. `<specsRoot>/<MODULE>/` hoặc code folder khớp module convention mà chưa có entry → thêm entry
-(`proposed`). Declared ≠ code → finding.
+tại. `<specsRoot>/<NNN>_<MODULE>/` (id = tên folder bỏ prefix `NNN_`) hoặc code folder khớp module
+convention mà chưa có entry → thêm entry (`proposed`). Declared ≠ code → finding.
 
 Dispatch read-only (`/ndv-module-matrix --verify` fallback): như Mode full nhưng KHÔNG ghi file —
 chỉ trả findings.

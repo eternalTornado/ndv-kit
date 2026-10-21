@@ -1,6 +1,6 @@
 ---
 module: <MODULE>
-plan-source: <specsRoot>/<MODULE>/plan.md
+plan-source: <specsRoot>/<NNN>_<MODULE>/plan.md
 approved: false               # /ndv-tasks set true qua AskUserQuestion gate — không tự set
 approved-date:
 created: <yyyy-mm-dd>

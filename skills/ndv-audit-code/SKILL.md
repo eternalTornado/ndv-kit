@@ -37,15 +37,17 @@ When this skill is invoked:
 ## Step 0 — Config + resolve lens
 
 Read `.claude/ndvkit/ndvkit.config.json` (`specsRoot`, `matrixRoot`, `auditReportRoot`,
-`codeRoots`, `contractsDoc`, `rulesRoot`, `kitRulesRoot`). Resolve rule file per lens (host
-trước, kit fallback) — chỉ truyền PATH cho agent, orchestrator không đọc body rule:
+`codeRoots`, `contractsDoc`, `rulesRoot`, `kitRulesRoot`). Spec folder `<specsRoot>/<NNN>_<MODULE>/`
+= field `spec` của entry modules.json, chưa có → Glob `<specsRoot>/*_<MODULE>/` (`NNN` = thứ tự
+implement, README §Quy ước chung). Resolve rule file per lens (host trước, kit fallback) — chỉ
+truyền PATH cho agent, orchestrator không đọc body rule:
 
 | Lens | Rule/spec files | Active khi scope có |
 |---|---|---|
 | `patterns` | constitution (Shared + stack) · module-constraints · Shared coding-style/security · known-pitfalls | source code |
 | `naming` | conventions + stack coding-style | source code / asset |
 | `data` | id-plan (+ host id table) · asset-structure | content asset, data table, id literal |
-| `spec` | `<specsRoot>/<MODULE>/` (specify.md, fallback requirement.md) · `contractsDoc` · `<matrixRoot>/modules.json` · security (trust boundary) | module có spec artifact / route literal |
+| `spec` | `<specsRoot>/<NNN>_<MODULE>/` (specify.md, fallback requirement.md) · `contractsDoc` · `<matrixRoot>/modules.json` · security (trust boundary) | module có spec artifact / route literal |
 | `ui` | ui-theming · naming-ui-toolkit · known-pitfalls | markup / stylesheet / UI code chứa bind helper |
 
 Lens không có file nào trong scope → không spawn cho lens đó; ghi `N/A` vào `## Coverage`.

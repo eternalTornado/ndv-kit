@@ -40,13 +40,13 @@ When this skill is invoked:
    Không có Python → dựng cùng bảng đó bằng Glob từng root (mọi ô có path hoặc `—`, không đoán).
 2. **Drift** = đúng các check của `/ndv-sync` Phase 1, không làm bản rút gọn riêng:
    `… ndv_check.py --checks doc-cite,code-cite,contract-gap,deps` + `… --refresh-status`
-   (dry-run) + check void-approval theo timestamp + check `legacy-tdd` (Grep `^tdd-source:`) của
-   `/ndv-sync` Phase 1.
+   (dry-run) + `… --spec-seq` (dry-run) + check void-approval theo timestamp + check `legacy-tdd`
+   (Grep `^tdd-source:`) của `/ndv-sync` Phase 1.
 3. Ghi `<auditReportRoot>/onboard-<yyyy-mm-dd>.md` (frontmatter `date`, `job: onboard-status`
    + output hai bước trên + `## Recommended next steps`) và chat summary: tình trạng từng
    tier, gap lớn nhất, route đề xuất — Option 2 nếu chưa có matrix, Option 3 cho module thiếu
    spec, `/ndv-audit-code current` cho estate review sâu, `/ndv-sync` cho drift,
-   `/ndv-gdd-to-spec <blueprint-path> <Feature> --update` cho `legacy-tdd` (requirement.md as-built: Option 3).
+   `/ndv-blueprint-to-spec <blueprint-path> <Feature> --update` cho `legacy-tdd` (requirement.md as-built: Option 3).
 
 ## Option 2 — Generate module matrix (reverse từ code)
 
@@ -72,12 +72,16 @@ frontmatter `origin: reverse-engineered` + `code-source` — contract của spec
 as-built, không restate trong prompt. Downstream (`/ndv-specify` trở đi) đối xử như requirement
 thường sau khi clarifications được owner trả lời.
 
+Cấp folder một lần cho cả scope (trước khi spawn, để agent song song không tranh số):
+`… ndv_check.py --spec-seq <scope sort theo layer modules.json rồi id> --write --json` → `dirs`
+(module đã có folder giữ số cũ).
+
 Per module (spawn parallel khi nhiều module):
 
 1. **requirement.md as-built**: spawn `spec-writer` (Task tool, model: opus) **Mode as-built** —
-   module id + `paths` từ modules.json, target `<specsRoot>/<MODULE>/requirement.md`, template
+   module id + `paths` từ modules.json, target `<dirs[id]>/requirement.md`, template
    `<templates>/requirement-template.md`, GDD path cover module nếu có (đối chiếu drift).
-2. Edit entry modules.json: điền `spec` = `<specsRoot>/<MODULE>` (folder, không phải file
+2. Edit entry modules.json: điền `spec` = `<dirs[id]>` (folder, không phải file
    requirement.md); rồi `… ndv_check.py --refresh-status <MODULE...> --write` (status +
    `modules.md`).
 3. KHÔNG tự sinh specify/plan/tasks trong onboard — đó là forward flow: report list

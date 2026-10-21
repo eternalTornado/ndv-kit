@@ -1,6 +1,6 @@
 ---
-name: ndv-gdd-to-spec
-description: "Bước 1 pipeline ndvkit: module blueprint đã approve (/ndv-blueprint) + GDD → modules.json + per-module requirement.md (EARS) + specify.md (clarified), chạy theo step: hỏi phạm vi layer (một/nhiều layer hoặc toàn bộ) → analyze một lần cho cả phạm vi → author + specify LẦN LƯỢT từng layer (Foundation → Layer 1..n, owner trước consumer) bằng workflow multi-agent (Workflow tool), hỏi user giữa các stage (module mapping, GDD gap, EARS ambiguity, contract-gap) và giữa các layer. Idempotent: GDD đổi = --update. Dùng khi blueprint vừa approve hoặc GDD đổi."
+name: ndv-blueprint-to-spec
+description: "Bước 1 pipeline ndvkit: module blueprint đã approve (/ndv-blueprint) + GDD → modules.json + per-module requirement.md (EARS) + specify.md (clarified) trong spec folder đánh số <NNN>_<MODULE> theo thứ tự implement (kiểu migration), chạy theo step: hỏi phạm vi layer (một/nhiều layer hoặc toàn bộ) → analyze một lần cho cả phạm vi → author + specify LẦN LƯỢT từng layer (Foundation → Layer 1..n, owner trước consumer) bằng workflow multi-agent (Workflow tool), hỏi user giữa các stage (module mapping, GDD gap, EARS ambiguity, contract-gap) và giữa các layer. Idempotent: GDD đổi = --update. Dùng khi blueprint vừa approve hoặc GDD đổi."
 argument-hint: "<blueprint-path> [<gdd-path-or-feature-name>] [--update]"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash, Write, Edit, Workflow, Task, AskUserQuestion, TodoWrite
@@ -28,7 +28,7 @@ TodoWrite một todo per step (Step 4 một todo per layer trong phạm vi) đ�
    `.claude/ndvkit/rules/**`.
 2. `.claude/agents/spec-writer.md` và `.claude/agents/module-architect.md` phải tồn tại (workflow
    resolve `agentType` từ đó) — else STOP, chỉ README §Activation.
-3. `scriptPath` = path ABSOLUTE `<repo root>/.claude/ndvkit/skills/ndv-gdd-to-spec/workflow.js`;
+3. `scriptPath` = path ABSOLUTE `<repo root>/.claude/ndvkit/skills/ndv-blueprint-to-spec/workflow.js`;
    `date` = hôm nay `yyyy-mm-dd` (script không đọc được đồng hồ). Host override model (prefix
    `[model]` của user, rule model trong `CLAUDE.md` — kể cả `~/.claude/CLAUDE.md`) → `models:
    {<role>: <model>}` theo role của `MODEL`; không có → bỏ field. Rule ép một model cho mọi
@@ -67,8 +67,15 @@ TodoWrite một todo per step (Step 4 một todo per layer trong phạm vi) đ�
 2. GDD argument có file không nằm trong `gddSources` của blueprint → báo, hỏi: chạy `/ndv-blueprint
    --update` trước / tiếp tục.
 3. `layers` = danh sách có thứ tự: các row Foundation (`Foundation · row 1..k`, hoặc `Foundation`)
-   → `Layer 1..n`; mỗi entry `{label, modules[]}`. Per module ghi trạng thái spec:
-   `<specsRoot>/<id>/requirement.md` / `specify.md` có hay chưa.
+   → `Layer 1..n`; mỗi entry `{label, modules[]}`, `modules` sort theo id (= thứ tự cấp số folder
+   trong layer). Per module ghi trạng thái spec: `<specsRoot>/<NNN>_<id>/requirement.md` /
+   `specify.md` có hay chưa.
+4. `specDirs` = `dirs` của `python3 .claude/ndvkit/skills/ndv-sync/scripts/ndv_check.py --spec-seq
+   --json` (map id → folder `<specsRoot>/<NNN>_<id>`, `NNN` = thứ tự implement, README §Quy ước
+   chung). Finding `unnumbered` (folder của kit bản cũ) → hỏi: đánh số ngay theo `layers` (`…
+   --spec-seq <id có folder không số, theo thứ tự layers> --write`: rename + rewrite reference, rồi
+   đọc lại `dirs`; folder của id ngoài blueprint → user archive / xóa) / dừng. `seq-duplicate` /
+   `id-duplicate` → blocking, STOP: user gộp / đổi tên folder.
 
 ## Step 2 — Scope gate (LUÔN hỏi, kể cả khi đã có spec)
 
@@ -83,7 +90,7 @@ TodoWrite một todo per step (Step 4 một todo per layer trong phạm vi) đ�
    của nó. `moduleFilter` = mọi module của `scope`.
 3. Owner chưa sẵn: module trong `scope` có dep (`deps` blueprint, `from` = module đó) tới module
    ngoài `scope` chưa có requirement.md → liệt kê, hỏi: thêm layer của owner vào scope / tiếp tục
-   (contract tới owner đó sẽ thành `contract-gap` ở Gate B).
+   (contract tới owner đó sẽ thành `contract-gap` ở Gate B; owner cấp số sau consumer → `seq-order`).
 
 ## Step 3 — Scout (inline, rẻ)
 
@@ -91,19 +98,20 @@ TodoWrite một todo per step (Step 4 một todo per layer trong phạm vi) đ�
    một chunk per nhóm section top-level, ≤~400 dòng per chunk, `id` = `c1`, `c2`, …. KHÔNG đọc body
    GDD (analyst đọc). File không có heading `^#{1,3} ` nào → fail rõ cho file đó (anchor không cite
    được): báo Design thêm heading rồi re-run — không gửi chunk `headings: []`, không bỏ file im lặng.
-2. Update mode: `existingRequirements` = mọi `<specsRoot>/<id>/requirement.md` của module trong
+2. Update mode: `existingRequirements` = mọi `<specsRoot>/<NNN>_<id>/requirement.md` của module trong
    `scope` có `gdd-sources` chứa các file này (Grep frontmatter) + requirement.md legacy có
    `tdd-source` trỏ TDD cite các file này.
 3. Update mode — anchor đã mất: `python3 .claude/ndvkit/skills/ndv-sync/scripts/ndv_check.py
    --checks doc-cite --artifact <existingRequirements> --json` → mỗi finding `doc-missing` /
    `section-not-found` có cite vào một GDD file của run → `removedAnchors[]`
-   `{module, fr, cite, change: "removed"}` (`module` = folder của requirement.md, `fr` = heading
-   `### <ID>` gần nhất phía trên dòng finding). Không có Python → Grep từng heading được cite.
+   `{module, fr, cite, change: "removed"}` (`module` = id của folder requirement.md, bỏ prefix
+   `NNN_`; `fr` = heading `### <ID>` gần nhất phía trên dòng finding). Không có Python → Grep từng heading được cite.
 
 ## Step 4 — Stage `analyze` (một lần cho cả scope)
 
 `Workflow({scriptPath, args: {stage: "analyze", feature, mode, date, gddFiles, config, blueprint,
-moduleFilter, models?, chunks, existingRequirements}})` → chờ notification hoàn tất, đọc result
+specDirs, moduleFilter, models?, chunks, existingRequirements}})` → chờ notification hoàn tất, đọc
+result
 (`items`, `gaps`, `mapping`, `uncovered`, `outOfFilter`, `changed`, `coverageChecked`, `models`,
 `log`). `mapping: null` (mapper fail) → spawn `module-architect` (Task, `model: opus`) Mode mapping
 với `items` + `moduleFilter` + path `blueprint` trước Gate A.
@@ -145,17 +153,22 @@ với `items` + `moduleFilter` + path `blueprint` trước Gate A.
 `layerModules` = module của mapping đã confirm thuộc layer này (kể cả drift-only); rỗng → bỏ qua
 layer, ghi report. Layer thấp viết trước nên khi tới consumer, requirement.md của owner đã có.
 
-### 5a — Baseline
+### 5a — Folder + baseline
 
-Kit không commit nên git không phải "trước run": `baselineDir` = thư mục tạm ABSOLUTE (macOS/Linux
-`mktemp -d`; Windows `New-Item -ItemType Directory "$env:TEMP\ndv-<date>-<n>"`), tạo MỘT lần cho
-cả run; copy `requirement.md` + `specify.md` ĐANG CÓ của `layerModules` sang
+Folder: module của `layerModules` chưa có trong `specDirs` → `python3
+.claude/ndvkit/skills/ndv-sync/scripts/ndv_check.py --spec-seq <các id đó, theo thứ tự của layer>
+--write --json`; `specDirs` = `dirs` của output. Số cấp TRƯỚC stage author nên batch song song
+không tranh số; module fail ở author giữ folder rỗng — số đã cấp, run sau dùng lại.
+
+Baseline: kit không commit nên git không phải "trước run": `baselineDir` = thư mục tạm ABSOLUTE
+(macOS/Linux `mktemp -d`; Windows `New-Item -ItemType Directory "$env:TEMP\ndv-<date>-<n>"`), tạo
+MỘT lần cho cả run; copy `requirement.md` + `specify.md` ĐANG CÓ của `layerModules` sang
 `<baselineDir>/<MODULE>/` trước stage author của layer. File chưa có → không copy (= absent).
 
 ### 5b — Stage `author`
 
-Args: common (`feature, mode, date, gddFiles, config, blueprint, models?`) + `baselineDir` +
-`modules` = mapping của `layerModules` (responsibilities mở rộng thành `{key, kind, summary, cite}`
+Args: common (`feature, mode, date, gddFiles, config, blueprint, specDirs, models?`) +
+`baselineDir` + `modules` = mapping của `layerModules` (responsibilities mở rộng thành `{key, kind, summary, cite}`
 từ `items`) + `decisions` / `deferred` có `modules` giao `layerModules` + `changed` (update mode:
 entry của `changed` analyze ∪ `removedAnchors` mà module hoặc prefix FR id thuộc `layerModules`,
 kèm `decision` khi user giữ FR). Sau khi xong:
@@ -166,8 +179,9 @@ kèm `decision` khi user giữ FR). Sau khi xong:
    .claude/ndvkit/skills/ndv-sync/scripts/ndv_check.py --checks contract-gap --artifact <các
    requirement.md đã ghi> --json`; mỗi finding status `contract-gap` (bỏ `contract-stopgap`) → mở
    `artifact:line`, `row` = cell đầu verbatim; bảng Contract surface → `kind: surface`, consumer =
-   module folder của artifact, owner = cell `Owning module`; bảng Consumer obligations → `kind:
-   obligation`, owner = module folder của artifact, consumer = cell `Consumer module`.
+   module của folder artifact (id, bỏ `NNN_`), owner = cell `Owning module`; bảng Consumer
+   obligations → `kind: obligation`, owner = module của folder artifact, consumer = cell `Consumer
+   module`.
 2. `python3 .claude/ndvkit/skills/ndv-blueprint/scripts/ndv_blueprint.py --blueprint <blueprint>
    --check` sau register — `matrix-band-violation` (Contract surface làm module Foundation depend
    module game) → hỏi ở Gate B: sửa row (withdraw / đổi owner) / `/ndv-blueprint --update` đổi band.
@@ -212,12 +226,14 @@ xong; layer còn lại chạy sau bằng cùng `<blueprint-path>` và chọn sco
 ## Step 6 — Report
 
 - Scope đã chọn, layer đã chạy / bỏ qua / dừng trước.
-- Per module (nhóm theo layer): FR/NFR count; specify.md đã ghi hay chưa (+ `open` còn lại →
-  `/ndv-specify <MODULE>`); `decision:` cite đã thêm; contract-gap đóng / còn mở;
+- Per module (nhóm theo layer, kèm folder `<NNN>_<id>`): FR/NFR count; specify.md đã ghi hay chưa
+  (+ `open` còn lại → `/ndv-specify <MODULE>`); `decision:` cite đã thêm; contract-gap đóng / còn mở;
   `orphanContractFRs`, `removed`, `contractsDocProposals` (addition đề xuất cho registry
   `contractsDoc` — user tự áp), `conflicts`, `unresolvedDefects`.
 - `followUps` của stage specify (`/ndv-specify <Target>` cho target ngoài layer có requirement.md
   đổi; conflict với `Out of scope`); matrix layer table + cycles; `uncovered` / `outOfFilter`.
+- `… ndv_check.py --spec-seq` sau run: finding `seq-order` (owner cấp số sau consumer) → nêu
+  thứ tự implement thật (owner trước); số không đổi (kiểu migration).
 - Model dùng per stage (`models` của từng result) + mọi dòng `log` báo fail / drop / giới hạn.
 - Update mode: FR đổi text — `changed[].fr` (analyze) ∪ `removed` (author) ∪ `changedIds`
   (specify); module = prefix của FR id — mà `plan.md` có `approved: true` → `/ndv-plan <MODULE>`

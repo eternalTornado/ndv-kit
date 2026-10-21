@@ -4,6 +4,19 @@ File này là nơi DUY NHẤT ghi amendment cho rules của kit (written rationa
 theo [Shared/constitution.md](Shared/constitution.md) §Governance). Body của rule file chỉ
 chứa current state (R9.1).
 
+## 2026-10-21 — Spec folder đánh số `<NNN>_<MODULE>` + đổi tên /ndv-gdd-to-spec → /ndv-blueprint-to-spec
+
+- **Rationale**: user muốn spec có số tăng dần như migration của Go để đọc được thứ tự implement.
+  Folder spec đổi từ `<specsRoot>/<MODULE>/` thành `<specsRoot>/<NNN>_<MODULE>/` (`NNN` cấp
+  `max + 1` lúc tạo bởi `ndv_check.py --spec-seq`, không bao giờ đánh lại); `/ndv-blueprint-to-spec`
+  cấp theo thứ tự layer nên owner có số nhỏ hơn consumer. `Shared/ai-discipline-session.md` §R9 row
+  "Module contract per module" đổi path theo. Skill `/ndv-gdd-to-spec` đổi tên thành
+  `/ndv-blueprint-to-spec` vì input chính là blueprint đã approve (GDD chỉ thu hẹp phạm vi). Entry
+  cũ bên dưới giữ tên cũ (lịch sử).
+- **Migration**: host đã activate → `rm -f .claude/skills/ndv-gdd-to-spec`, re-run Activation,
+  re-copy `agents/*.md`. Spec folder không số → `ndv_check.py --spec-seq` (dry-run) rồi `--write`
+  (rename + rewrite reference, cite-only edit) — README §Activation, mục Migrate từ kit bản cũ.
+
 ## 2026-10-19 — Thêm Shared/module-design.md (MD rules) + bước /ndv-blueprint
 
 - **Rationale**: kit thêm bước 0 `/ndv-blueprint` — kiến trúc module được thiết kế và user approve

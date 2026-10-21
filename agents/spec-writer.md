@@ -1,6 +1,6 @@
 ---
 name: spec-writer
-description: "Viết per-module <specsRoot>/<MODULE>/requirement.md (EARS, ID stable, mọi value literal-quote kèm cite GDD anchor / decision: / contract: / code symbol) và specify.md (clarified + Given/When/Then). Modes: forward, as-built, back-propagation, compose-specify, fix, cite-only. Dùng bởi /ndv-gdd-to-spec (workflow), /ndv-onboard reverse-doc (as-built), /ndv-specify (back-propagation; §Mode compose-specify là SoT cho Phase 3 inline), /ndv-sync (cite-only). Không hỏi user — gap/ambiguity trả về orchestrator."
+description: "Viết per-module <specsRoot>/<NNN>_<MODULE>/requirement.md (EARS, ID stable, mọi value literal-quote kèm cite GDD anchor / decision: / contract: / code symbol) và specify.md (clarified + Given/When/Then). Modes: forward, as-built, back-propagation, compose-specify, fix, cite-only. Dùng bởi /ndv-blueprint-to-spec (workflow), /ndv-onboard reverse-doc (as-built), /ndv-specify (back-propagation; §Mode compose-specify là SoT cho Phase 3 inline), /ndv-sync (cite-only). Không hỏi user — gap/ambiguity trả về orchestrator."
 tools: Read, Glob, Grep, Write, Edit
 model: opus
 ---
@@ -51,7 +51,7 @@ that hide two behaviors get split. IDs are stable: never renumber, a deleted ID 
   GDD context (vd intent as-built, câu TDD legacy không GDD cite, anchor đã bị xóa khỏi GDD).
 - `NEEDS CLARIFICATION: <câu hỏi>` — chỉ cho row legacy TDD chưa có source (§Mode forward);
   compose-specify thay bằng answer.
-- `contract: <specsRoot>/<Module>/<file>#<section> — "<row>"` — back-propagation (§Mode
+- `contract: <specsRoot>/<NNN>_<Module>/<file>#<section> — "<row>"` — back-propagation (§Mode
   back-propagation).
 - `<path>::<Type>.<Member>` — as-built, symbol của file đã mở trong session.
 
@@ -60,10 +60,15 @@ sửa GDD trước (R3).
 
 ### Artifacts
 
-- `<specsRoot>/<MODULE>/requirement.md` — per `<templates>/requirement-template.md`; được phép
+Spec folder `<specsRoot>/<NNN>_<MODULE>/`: `NNN` = thứ tự implement, orchestrator cấp
+(`ndv_check.py --spec-seq`) và truyền target path qua dispatch — bạn không tạo, đổi tên hay đánh
+số folder. Folder của module khác: field `spec` trong modules.json, chưa có thì Glob
+`<specsRoot>/*_<MODULE>/`; không match = module đó chưa có spec.
+
+- `<specsRoot>/<NNN>_<MODULE>/requirement.md` — per `<templates>/requirement-template.md`; được phép
   chứa `NEEDS CLARIFICATION`. Frontmatter `gdd-sources` = mọi GDD file mà một FR/NFR của module
   cite (module phục vụ nhiều feature → giữ entry của feature khác).
-- `<specsRoot>/<MODULE>/specify.md` — per `<templates>/specify-template.md`; chỉ ghi trong Mode
+- `<specsRoot>/<NNN>_<MODULE>/specify.md` — per `<templates>/specify-template.md`; chỉ ghi trong Mode
   compose-specify (và Mode fix trên chính nó). INVARIANT: zero `NEEDS CLARIFICATION`.
 - Mọi section header của template giữ nguyên; section optional rỗng = `N/A — <reason>`. Body =
   current state: A→B thay thế, không changelog, không footnote.
@@ -98,7 +103,7 @@ rewritten by a forward or as-built pass. Its consumer row no longer exists → r
 
 ### Mode forward
 
-Dispatch: `/ndv-gdd-to-spec` stage author. Input: feature · `create|update` · date · batch ≤3
+Dispatch: `/ndv-blueprint-to-spec` stage author. Input: feature · `create|update` · date · batch ≤3
 module, mỗi module = confirmed mapping entry (`id`, `name`, `isNew`, `extends?`, responsibilities
 `{key, kind, summary, cite}`, `gddSections`) + target path · `decisions[]` (`{gapId, cite,
 question, answer, date, modules}`) · `deferred[]` gaps (`{gapId, question, cite, options,
@@ -197,14 +202,14 @@ Return: `{id, path, frIds, nfrIds, open, drift:[finding], contractRows}`.
 
 ### Mode back-propagation
 
-Dispatch: `/ndv-gdd-to-spec` stage specify, `/ndv-specify` Phase 4. Input: ONE target module +
+Dispatch: `/ndv-blueprint-to-spec` stage specify, `/ndv-specify` Phase 4. Input: ONE target module +
 mọi row user đã chọn cho target đó, mỗi row kèm module chứa row (`rowModule`) + path artifact
 chứa row: `add` / `stopgap` — target = owning module cho Contract surface row, consumer module cho
 Consumer obligations row.
 
 1. Read requirement.md của target + artifact chứa từng row (+ GDD section khi row cite GDD).
 2. `add` → FR/NFR mới trong requirement.md của target — next free ID, EARS, Source
-   `contract: <specsRoot>/<Module>/<file>#<section> — "<row>"` (`<file>` = specify.md của module
+   `contract: <specsRoot>/<NNN>_<Module>/<file>#<section> — "<row>"` (`<file>` = specify.md của module
    chứa row, hoặc requirement.md khi module đó chưa có specify.md; `<section>` = `Contract surface`
    / `Consumer obligations`) + GDD cite khi GDD nêu need. GDD im lặng → contract source alone is
    valid: the need comes from a clarified consumer spec, it is not invented.
@@ -221,7 +226,7 @@ chung id khi một FR cover cả hai) — orchestrator/composer ghi id vào row,
 
 ### Mode compose-specify
 
-SoT cho write-back + compose specify.md: `/ndv-gdd-to-spec` stage specify dispatch mode này;
+SoT cho write-back + compose specify.md: `/ndv-blueprint-to-spec` stage specify dispatch mode này;
 `/ndv-specify` áp inline (bước 1 ở Phase 2, bước 2 ở Phase 3, bước 3 ở Phase 4). Input: module id · path
 requirement.md/specify.md · `answers[]` literal (`{kind, ref, question, answer, date}` — `kind` ∈
 `clarify` (vắng = `clarify`) | `add` | `out-of-scope` | `fix`; `ref`: `clarify` = marker /
@@ -272,7 +277,7 @@ changedIds, conflicts:[{ref, reason}], contractGaps:[{row, kind, target}]}`.
 
 ### Mode fix
 
-Dispatch: fix loop của `/ndv-gdd-to-spec` (sau forward hoặc compose-specify). Input: defect list
+Dispatch: fix loop của `/ndv-blueprint-to-spec` (sau forward hoặc compose-specify). Input: defect list
 `{module, id, problem, evidence}` + artifact paths.
 
 1. Per defect: mở đúng evidence (artifact + source được cite), apply đúng sửa đổi — không đụng
