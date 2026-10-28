@@ -33,14 +33,21 @@ When this skill is invoked:
 - **Rule precedence**: host `.claude/rules/**` + `CLAUDE.md` > kit rules
   `.claude/ndvkit/rules/**`; trong kit `Shared/` > stack. Priority arbitrate được → audit theo
   rule thắng, cite nó; chỉ vào `## Rule conflicts — needs decision` khi priority KHÔNG arbitrate.
+  Host vs kit luôn arbitrate được (host thắng), không bao giờ thành `C-NNN`. Kit vs kit mà host
+  có câu cover domain đó → host thắng cả hai.
 
 ## Step 0 — Config + resolve lens
 
 Read `.claude/ndvkit/ndvkit.config.json` (`specsRoot`, `matrixRoot`, `auditReportRoot`,
 `codeRoots`, `contractsDoc`, `rulesRoot`, `kitRulesRoot`). Spec folder `<specsRoot>/<NNN>_<MODULE>/`
 = field `spec` của entry modules.json, chưa có → Glob `<specsRoot>/*_<MODULE>/` (`NNN` = thứ tự
-implement, README §Quy ước chung). Resolve rule file per lens (host trước, kit fallback) — chỉ
+implement, README §Quy ước chung). Resolve rule files hai tầng (README §Rule precedence) — chỉ
 truyền PATH cho agent, orchestrator không đọc body rule:
+
+1. **Host tier** — MỌI file dưới `<rulesRoot>/**` + `CLAUDE.md` của host. Truyền cho MỌI lens,
+   không lọc theo tên file hay `paths:` frontmatter, đứng đầu list.
+2. **Kit tier** — file per lens theo bảng dưới, từ `<kitRulesRoot>`; host có bản adopt cùng
+   tên dưới `<rulesRoot>` → bỏ bản kit. Chỉ áp cho domain host không define.
 
 | Lens | Rule/spec files | Active khi scope có |
 |---|---|---|

@@ -39,6 +39,26 @@ updated: <yyyy-mm-dd>
 
 <Sequence: component nào gọi gì, event nào bắn (naming theo host convention), state đổi ở đâu. Component/method có sẵn → `<path>::<Type>.<Member>`; component mới → tên + folder theo skeleton §1. Component/method sẽ bị thay → `trước implement: …` + symbol (xem header).>
 
+## 3a. State & guards
+
+> Bắt buộc khi service giữ mutable state qua nhiều operation hoặc async flow. Stateless →
+> `N/A — stateless` + một câu lý do. Flow §3 gọi guard / transition theo tên ở đây, không viết lại
+> điều kiện inline.
+
+**State fields**
+
+| Field | Ý nghĩa | Set ở (transition) | Reset ở (transition) |
+|---|---|---|---|
+
+**Invariants**: mệnh đề luôn đúng sau mọi transition (vd `PresentedConflict != null ⇒ _held != null`).
+Transition nào reset một field thì reset luôn mọi field mà invariant buộc với nó.
+
+**Guard matrix**: mỗi operation public / trigger × precondition mà spec đòi (signed-in, online,
+schema, in-flight…). Ô = tên guard + AC cite, hoặc `N/A` + lý do.
+
+| Operation | <precondition 1> | <precondition 2> | … |
+|---|---|---|---|
+
 ## 4. Dependency wiring
 
 - Declared dependencies: <list — PHẢI bằng `deps[] ∪ plannedDeps[]` của entry trong `<matrixRoot>/modules.json`; cạnh plan cần mà code chưa có → `plannedDeps` kèm spec evidence, không tự thêm vào `deps`>

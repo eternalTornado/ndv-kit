@@ -42,6 +42,8 @@ Fill `<templates>/tasks-template.md`:
   task of this module.
 - Phases in dependency order mirroring the plan skeleton (data/model trước,
   wiring/UI sau).
+- Helper dùng chung (plan §2) và guard / transition (plan §3a) → task riêng, đặt TRƯỚC mọi task
+  dùng chúng; task dùng ghi tên helper / guard nó gọi.
 - Task format: `- [ ] T-NNN [FR-refs] <verb> <deliverable> (<files>)`.
   One task = one reviewable unit (≤1 file cluster).
   `<files>` lists paths; when a task edits a specific existing member, point at it by

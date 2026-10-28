@@ -10,9 +10,11 @@ When this skill is invoked:
 
 ## Phase 0 — Preconditions (hard gate)
 
-1. Read `.claude/ndvkit/ndvkit.config.json` (`specsRoot`, `matrixRoot`, `verifyNote`). Coding
-   rules + precedence do agent `module-implementer` tự resolve (host `.claude/rules/**` > kit
-   `.claude/ndvkit/rules/**`). Spec folder `<specsRoot>/<NNN>_<MODULE>/` = field `spec` của entry
+1. Read `.claude/ndvkit/ndvkit.config.json` (`specsRoot`, `matrixRoot`, `verifyNote`, `rulesRoot`,
+   `kitRulesRoot`). Resolve rule files hai tầng theo `/ndv-audit-code` Step 0 — host tier (toàn bộ
+   `<rulesRoot>/**` + `CLAUDE.md`) trước, kit tier (file per lens) sau — đúng bộ file audit sẽ
+   chấm; chỉ truyền PATH cho agent. Orchestrator đọc body host tier (cho step 4), không đọc body
+   kit tier. Spec folder `<specsRoot>/<NNN>_<MODULE>/` = field `spec` của entry
    modules.json, chưa có → Glob `<specsRoot>/*_<MODULE>/` (`NNN` = thứ tự implement, README §Quy
    ước chung).
 2. `<specsRoot>/<NNN>_<MODULE>/plan.md` AND `tasks.md` both have `approved: true` —
@@ -31,11 +33,22 @@ When this skill is invoked:
    row blocks; (c) approve a stopgap — the user names the files under the owner's `paths` this run
    may write; record `approved <yyyy-mm-dd>: <files>` in the row's `Stopgap` cell. A stopgap leaves
    the `contract-gap` open for `/ndv-sync`.
-4. Xác định cơ chế verify build/compile của project (`verifyNote` config;
+4. **Host rule gate** — host rule mô tả trạng thái project phải đúng NGAY BÂY GIỜ, không phải mục
+   tiêu về sau. Mỗi rule hay decision đã chốt trong host tier khẳng định trạng thái repo (folder /
+   path tồn tại hay đã dời, giá trị config, owner của scene / prefab, file hay pattern bị cấm) →
+   check bằng Glob / Grep / Read; đoạn chỉ mô tả code hiện có thì không thuộc gate. Repo lệch → STOP, không spawn. Ghi chú trong plan.md / tasks.md / deviation thừa nhận lệch
+   (vd "X chưa thực hiện") KHÔNG phải approval. AskUserQuestion:
+   (a) đưa repo về đúng rule trước — orchestrator liệt kê bước (vd dời folder, cite-only edit theo
+   `/ndv-sync`); user approve → orchestrator làm như một bước riêng trước Phase 1, verify theo
+   `verifyNote`, ghi vào report;
+   (b) user đổi host rule cho khớp thực tế, ghi `decision: <yyyy-mm-dd>` vào rule — skill không
+   tự sửa host rule;
+   (c) dừng run.
+5. Xác định cơ chế verify build/compile của project (`verifyNote` config;
    nếu rỗng, hỏi user một lần và đề nghị điền vào config). Nếu cơ chế cần
    service/tool đang không chạy (vd editor bridge, build server), request
    user chuẩn bị trước khi tiếp tục.
-5. `--continue` resumes from the first unchecked task; `--phase <n>` runs one
+6. `--continue` resumes from the first unchecked task; `--phase <n>` runs one
    phase only; default runs phases sequentially with a gate between each.
 
 ## Phase 1 — Execute per phase
@@ -49,12 +62,15 @@ For each phase in tasks.md:
 
 1. Snapshot `git status --porcelain` (baseline). Spawn / resume `module-implementer` (Task
    tool, model: sonnet) với: module id, phase cần chạy, paths tới plan.md + specify.md +
-   tasks.md, write scope (module `paths` + `<specsRoot>/<NNN>_<MODULE>/tasks.md` + files tasks name
+   tasks.md, rule files (Phase 0 step 1), write scope (module `paths` + `<specsRoot>/<NNN>_<MODULE>/tasks.md` + files tasks name
    under no module's `paths` + stopgap-approved files). Hành vi (no scope expansion, test
    policy, no commit) là contract của agent — không restate trong prompt.
 2. On agent return:
    - **blocked with question** → AskUserQuestion, then resume the same instance with the answer.
    - **blocked: prerequisite <owner> <what>** → the same three options as Phase 0 step 3.
+   - **blocked: host-rule <file#section>** → host rule thắng plan.md / tasks.md. AskUserQuestion:
+     plan sai → dừng, gửi về `/ndv-plan`; repo lệch rule → các option của Phase 0 step 4. Không
+     resume implementer để làm theo plan trái host rule.
    - **spec-drift finding** → present Finding/Evidence/Impact to the user;
      route: minor → fix spec inline (sync specify.md/plan.md, A→B replace);
      major → stop, send back to `/ndv-specify`/`/ndv-plan`.
@@ -71,8 +87,18 @@ For each phase in tasks.md:
      under another module's `paths` = phase NOT done: feed it back to the agent to revert, or
      AskUserQuestion for a stopgap (Phase 0 step 3c). Host without git → run the same check on
      the agent's returned file list.
-3. Gate between phases: report files changed + deviations; continue unless
-   the user intervened or a gate in tasks.md says stop for review.
+
+     **Phase review** (sau compile sạch + scope check; phase không đổi file code nào → bỏ qua):
+     spawn (Task tool) `subagent_type: code-auditor`, model: sonnet, vai FINDER, lens `patterns`
+     + `spec`, scope = file code đổi trong phase (`git status --porcelain` minus baseline, bỏ
+     tasks.md và sidecar `.meta`), spec = specify.md + plan.md, rule files Phase 0 step 1. Agent
+     type chưa đăng ký → fallback như `/ndv-audit-code` Step 1. Candidate ≥ `medium` → resume
+     implementer với candidate records: fix theo Fix hoặc refute kèm evidence (cite plan / spec)
+     → compile lại theo vòng compile-fix ở trên. `low` / `info` → chỉ liệt kê ở gate. MỘT vòng
+     review mỗi phase; orchestrator không phân xử candidate bị refute — ghi vào report phase.
+3. Gate between phases: report files changed + deviations + phase review (raised / fixed /
+   refuted / low-info listed); continue unless the user intervened or a gate in tasks.md says
+   stop for review.
 
 ## Phase 2 — Registration/manual steps
 
@@ -101,5 +127,6 @@ hand-author).
    cite per `/ndv-sync` Phase 1). Report every `broken-cite` with its owning artifact and
    the route from `/ndv-sync` Phase 2. Fixing them is a cite-only edit (`/ndv-sync` §Cite-only
    edit) — never bundled silently into this run.
-3. Report: phases done, files written, deviations, verify result, cite sweep result.
+3. Report: host rule gate result, phases done, files written, deviations, verify result, phase
+   review tally, cite sweep result.
 4. Next step: `/ndv-audit-code module <MODULE>`. Không commit trừ khi user yêu cầu.

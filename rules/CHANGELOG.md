@@ -4,6 +4,49 @@ File này là nơi DUY NHẤT ghi amendment cho rules của kit (written rationa
 theo [Shared/constitution.md](Shared/constitution.md) §Governance). Body của rule file chỉ
 chứa current state (R9.1).
 
+## 2026-10-28 — Host rules nạp đủ, thắng plan, chặn implement khi repo lệch
+
+- **Rationale**: host (supermarket-simulator) có rule `.claude/rules/module-convention.md` ghi code
+  as-built nằm ở `Scripts~` (decision D14), nhưng folder chưa từng được dời. Cả 4 plan đầu đều ghi
+  "D14 chưa thực hiện" rồi implement vẫn chạy: không bước nào coi host rule là trạng thái phải đúng
+  trước khi viết code. Cùng lúc, rule conflict C-001 (pre-event `<Subject><Verb>ing` trong
+  `Unity/conventions.md` vs MD-23) bị để chờ decision dù host rule đã nói "It names a past fact".
+  Nguyên nhân chung: rule file được chọn per lens theo tên file của kit, nên host rule tên khác có
+  thể không tới agent, và kit chưa nói rõ host vs kit không bao giờ là conflict. Thay đổi:
+  - `README.md` §Rule precedence, `skills/ndv-audit-code` Step 0: rule nạp hai tầng — host tier là
+    toàn bộ `<rulesRoot>/**` + `CLAUDE.md`, truyền cho mọi lens; kit tier per lens. Host thắng kit
+    và thắng plan.md / tasks.md; host vs kit không thành `C-NNN`; kit vs kit mà host có câu cover →
+    host quyết.
+  - `skills/ndv-implement`: Phase 0 step 4 mới = host rule gate (repo lệch rule / decision đã chốt →
+    STOP, AskUserQuestion: sửa repo trước / user đổi rule / dừng); return `blocked: host-rule`.
+  - `agents/module-implementer.md`: đọc host tier trước; plan / task trái host rule hoặc repo lệch
+    host rule → `blocked: host-rule`, không làm vòng, không ghi deviation.
+  - `agents/code-auditor.md`, `skills/ndv-plan` Phase 1 step 3: cùng thứ tự hai tầng.
+- **Migration**: re-copy `agents/code-auditor.md` + `agents/module-implementer.md` sang
+  `.claude/agents/`. Audit report cũ có `C-NNN` host vs kit → audit lại; finding theo host rule.
+
+## 2026-10-23 — Plan review + phase review: chặn defect trước audit
+
+- **Rationale**: audit module đầu tiên của host (SaveService, CloudSave, MonetisationServices) đều ra
+  finding ≥ `medium`, và phần lớn sinh ở plan, không ở implement: 3 / 4 medium của CloudSave là
+  guard hoặc mapping thiếu trong plan, còn SaveService F-001 là logic bị copy giữa các task vì plan
+  không khai báo helper dùng chung. Từ lúc plan approve tới audit không có bước kiểm độc lập nào
+  (implement chỉ verify compile). Người viết và người chấm còn đọc hai bộ rule khác nhau: `/ndv-plan`
+  chỉ đọc host rules, còn audit chấm theo bộ file per lens gồm cả kit rules. Thay đổi:
+  - `agents/code-auditor.md`: thêm vai PLAN-REVIEWER (AC trace, literal surface, state & guards,
+    shared logic); FINDER nhận scope là file list của một phase.
+  - `skills/ndv-plan`: Phase 1 resolve rule files per lens như `/ndv-audit-code` Step 0; Phase 2
+    thêm shared logic + State & guards; Phase 3 mới = plan review (fable) trước approval gate
+    (Phase 4).
+  - `templates/plan-template.md`: §3a State & guards (state fields, invariants, guard matrix).
+  - `skills/ndv-tasks`: helper dùng chung + guard / transition → task riêng, đặt trước task dùng.
+  - `skills/ndv-implement`: truyền rule files per lens cho implementer; phase review (FINDER lens
+    `patterns` + `spec`, sonnet) sau compile sạch, candidate ≥ `medium` quay lại implementer.
+  - `agents/module-implementer.md`: đọc rule files được truyền; tách helper khi logic lặp giữa các
+    task (báo deviation); guard / transition §3a viết một lần; xử lý candidate của phase review.
+- **Migration**: re-copy `agents/code-auditor.md` + `agents/module-implementer.md` sang
+  `.claude/agents/`. Plan đã approve không cần làm lại; §3a áp khi plan được refresh lần tới.
+
 ## 2026-10-21 — Spec folder đánh số `<NNN>_<MODULE>` + đổi tên /ndv-gdd-to-spec → /ndv-blueprint-to-spec
 
 - **Rationale**: user muốn spec có số tăng dần như migration của Go để đọc được thứ tự implement.

@@ -18,20 +18,29 @@ orchestrator before you are spawned — do not re-check it.
 
 ### Rule source (hard constraint)
 
-Before writing any code, read the host project's `.claude/rules/**` and
-`CLAUDE.md` — coding style, naming, architecture/module conventions,
-serialization, UI conventions, known pitfalls, security/authority, test
-policy ALL come from there and OVERRIDE anything else; where the host defines no
-rule, apply the kit default rules at `.claude/ndvkit/rules/**` (AI behavior:
-`Shared/ai-discipline.md` worker core — `ai-discipline-session.md` is for the main session).
-If the host (or the kit ruleset) has a pitfalls document, read it before the first edit. This
-kit adds only:
+Before writing any code, read every rule file the orchestrator passes, host tier first: every file
+under `.claude/rules/**` plus the host `CLAUDE.md`, then the kit per-lens files that
+`/ndv-audit-code` grades this module against, applied only where the host is silent. No list
+passed → read `.claude/rules/**` and `CLAUDE.md`, then `.claude/ndvkit/rules/**` for every domain
+the host does not define. Host rules OVERRIDE kit rules and plan.md / tasks.md (AI behavior:
+`Shared/ai-discipline.md` worker core — `ai-discipline-session.md` is for the main session). If the host (or the kit ruleset) has a pitfalls document, read it before the first edit.
+This kit adds only:
 
 - Follow the approved plan/tasks exactly — no drive-by refactors, no balance
   constant changes, no gameplay rules invented, no scope expansion.
+- DRY across tasks: reuse logic that already exists in the module or that an earlier task wrote.
+  When a task needs logic another task already wrote and the plan declares no shared helper,
+  extract one helper inside the write scope and report it as a deviation. Copying the logic is
+  not "following the plan".
+- Guards and state transitions in plan §3a: implement each one once as a named member and call
+  it from every operation the guard matrix lists. Never re-inline the condition.
 - If a task needs something the host rules forbid or leave undeclared (new
   folder kind, new dependency, new pattern), that is a blocking question, not
   a judgment call.
+- A plan or task line that contradicts a host rule, or a host rule whose stated project state the
+  repo does not match (path, folder, config, ownership), is a blocker: STOP and return
+  `blocked: host-rule <file#section>` with evidence. Never work around it, never record it as a
+  deviation or a note.
 - Minimal comments; short code; KISS/YAGNI/DRY.
 - Generate test code ONLY if the host rules require it or tasks.md contains
   an explicit approved test task.
@@ -61,11 +70,13 @@ tree against this scope after every phase.
    - Mark the task checkbox done in tasks.md ONLY after the edit is verified
      (file written, references resolve).
 2. After each phase: report files changed + deviations. A deviation from
-   plan.md is only legal when a technical constraint forces it — call it out
-   explicitly with evidence; never silently drift.
+   plan.md is only legal when a technical constraint forces it and no host rule
+   forbids it — call it out explicitly with evidence; never silently drift.
 3. Spec-drift check: if implementation reveals the spec/plan is wrong, STOP
    at that task and return the drift finding (Finding/Evidence/Impact)
    instead of improvising.
-4. Return: phase(s) completed, task checklist state, files written,
-   deviations, open questions, blocked prerequisites; add `context: near-limit` when your
+4. Phase review (resumed with candidate records from `code-auditor`): per candidate, apply its
+   Fix or refute it with evidence (plan / spec cite). Return `{id, fixed | refuted, evidence}`.
+5. Return: phase(s) completed, task checklist state, files written,
+   deviations, open questions, blocked prerequisites, blocked host rules; add `context: near-limit` when your
    context is close to full so the orchestrator spawns a fresh instance for the next phase.

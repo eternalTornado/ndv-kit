@@ -27,9 +27,9 @@ Sau khi clone:
 
 ## Rule precedence (áp cho MỌI agent + skill trong kit)
 
-1. `.claude/rules/**` + `CLAUDE.md` của project host (auto-load) **thắng** mọi thứ trong kit khi mâu thuẫn.
+1. `.claude/rules/**` + `CLAUDE.md` của project host (auto-load) **thắng** mọi thứ trong kit khi mâu thuẫn, và thắng cả plan.md / tasks.md. Host vs kit không bao giờ là conflict cần hỏi user. Host rule mô tả trạng thái project phải đúng ngay; repo lệch thì dừng và hỏi, không ghi chú rồi đi tiếp.
 2. Domain nào host KHÔNG define → dùng **kit default rules** tại [`rules/`](rules/README.md) (`kitRulesRoot`) — bộ rules đầy đủ `Shared/` + `Unity/` + `Server/`, project-agnostic. Sửa rule = ghi entry vào [`rules/CHANGELOG.md`](rules/CHANGELOG.md). Project mới có thể copy nguyên folder này vào `.claude/rules/` để auto-load (adopt = tự define rules riêng từ đó).
-3. Trước khi viết artifact/code, đọc rules liên quan theo thứ tự trên (coding style, naming, architecture, pitfalls, security/authority, id allocation).
+3. Trước khi viết artifact/code, đọc rules theo thứ tự trên: toàn bộ host rules trước (không lọc theo lens hay tên file), rồi kit rules per lens (`/ndv-audit-code` Step 0) cho coding style, naming, architecture, pitfalls, security/authority, id allocation.
 4. Baseline AI behavior là R1–R10, chia hai file theo đối tượng đọc — SoT duy nhất, không
    restate ở đây: [`rules/Shared/ai-discipline.md`](rules/Shared/ai-discipline.md) (worker
    core, mọi sub-agent đọc) giữ R1, R2, R3, R4, R5, R7; còn
@@ -66,9 +66,9 @@ Sau khi clone:
 <matrixRoot>/modules.json + modules.md       (json = data SoT do agent ghi; md = human view + status, script sinh, zero agent cost; waterfall layers L0 → Ln)
 <specsRoot>/<NNN>_<MODULE>/requirement.md    (NNN = thứ tự implement; EARS, Source cite GDD anchor / decision: / contract:)
 <specsRoot>/<NNN>_<MODULE>/specify.md        (clarified + Given/When/Then — chỉ ghi khi zero NEEDS CLARIFICATION)
-  │  /ndv-plan     ─▶ plan.md                (technical design, GATE: user approve)
+  │  /ndv-plan     ─▶ plan.md                (technical design + plan review [code-auditor vai PLAN-REVIEWER], GATE: user approve)
   │  /ndv-tasks    ─▶ tasks.md               (ordered tasks, GATE: user approve)
-  │  /ndv-implement           [agent: module-implementer]  (chỉ chạy sau khi plan+tasks approved)
+  │  /ndv-implement           [agent: module-implementer + code-auditor FINDER phase review]  (chỉ chạy sau khi plan+tasks approved)
   ▼
 <codeRoots>/<Module>/                        (code)
   │  /ndv-audit-code module <MODULE>  [agent: code-auditor]
@@ -161,9 +161,9 @@ chạy cùng các stage bằng Task theo prompt/schema trong `workflow.js`. Neve
   [Model routing](#model-routing).
 - **Protocol sống trong file agent**, spawn prompt chỉ mang role · scope · paths — skill không
   restate contract của agent.
-- **Một agent, hai vai**: `module-architect` Mode blueprint-review và `code-auditor` VERIFIER là
-  instance MỚI của cùng agent (độc lập với author/finder) — ngoại lệ có chủ đích của "resume, không
-  respawn".
+- **Một agent, nhiều vai**: `module-architect` Mode blueprint-review, `code-auditor` VERIFIER và
+  `code-auditor` PLAN-REVIEWER là instance MỚI của cùng agent (độc lập với author/finder) — ngoại lệ
+  có chủ đích của "resume, không respawn".
 - **Workflow**: chỉ `/ndv-blueprint-to-spec` chạy Workflow tool; agent trong workflow không hỏi user —
   main session hỏi giữa các stage.
 - **Model**: mỗi spawn line của skill ghi model cụ thể (`model: <x>` trong Task call) theo
@@ -227,7 +227,7 @@ Bốn mode standalone (mỗi mode chạy một mình, bỏ qua các cite check �
 │   ├── spec-writer.md
 │   ├── module-architect.md
 │   ├── module-implementer.md
-│   ├── code-auditor.md        # FINDER/VERIFIER worker cho /ndv-audit-code (roles, không phải hai agent)
+│   ├── code-auditor.md        # FINDER/VERIFIER/PLAN-REVIEWER worker (roles, không phải ba agent)
 │   └── audit-fixer.md         # fix-executor worker cho /ndv-audit-fix
 ├── skills/                    # <name>/SKILL.md
 │   ├── ndv-blueprint/
@@ -264,9 +264,9 @@ Thứ tự theo pipeline. `argument-hint` khớp frontmatter của từng `SKILL
 | `/ndv-blueprint-to-spec` | `<blueprint-path> [<gdd-path-or-feature-name>] [--update]` | Workflow `workflow.js` (scope layer → stage analyze một lần → author → specify per layer): `spec-writer`, `module-architect` + verifier nội bộ workflow | `<matrixRoot>/modules.json` (+ `modules.md` script render) + `<specsRoot>/<NNN>_<MODULE>/requirement.md` + `specify.md` | gate A: module mapping + GDD gap; gate B: EARS ambiguity + `contract-gap`; specify.md chỉ ghi khi zero marker; matrix cycle = blocking; never commit |
 | `/ndv-module-matrix` | `[<module-id>] [--verify]` | `module-architect` | `<matrixRoot>/modules.json` (data SoT) + `modules.md` (script render) | maintenance (luồng chính register qua `/ndv-blueprint-to-spec`): không arg = full re-sync từ spec + code; `<module-id>` = re-derive từ code; layer không cycle; derive `status` bằng script (§Status lifecycle) |
 | `/ndv-specify` | `<module-id> [--from-audit <report-path> [--ids F-001,F-002]]` | — (inline, compose theo `spec-writer` §Mode compose-specify; `spec-writer` cho contract back-propagation) | `<specsRoot>/<NNN>_<MODULE>/specify.md` | single-module: clarification đã Defer, sửa requirement, contract back-propagation (`contract-gap` nêu trong report); owner của spec-fix; zero `NEEDS CLARIFICATION` |
-| `/ndv-plan` | `<module-id>` | — (inline) | `<specsRoot>/<NNN>_<MODULE>/plan.md` | user approve (AskUserQuestion) |
+| `/ndv-plan` | `<module-id>` | `code-auditor` (vai PLAN-REVIEWER) | `<specsRoot>/<NNN>_<MODULE>/plan.md` | plan review trước gate; user approve (AskUserQuestion) |
 | `/ndv-tasks` | `<module-id>` | — (inline) | `<specsRoot>/<NNN>_<MODULE>/tasks.md` | user approve (AskUserQuestion); Prerequisites derive từ specify |
-| `/ndv-implement` | `<module-id> [--phase <n>] [--continue]` | `module-implementer` | code dưới `<codeRoots>/<Module>/` | hard gate: plan + tasks approved; Prerequisites thỏa; write scope = `paths` của module (scope check sau mỗi phase); cite sweep khi close |
+| `/ndv-implement` | `<module-id> [--phase <n>] [--continue]` | `module-implementer`; `code-auditor` (vai FINDER, phase review) | code dưới `<codeRoots>/<Module>/` | hard gate: plan + tasks approved; Prerequisites thỏa; write scope = `paths` của module (scope check sau mỗi phase); phase review lens patterns + spec trên file đổi, candidate ≥ medium quay lại implementer; cite sweep khi close |
 | `/ndv-audit-code` | `[module <module-id>... \| module --all \| current [<path>] \| changes vs-<base>]` | `code-auditor` (vai FINDER + vai VERIFIER) | mode `module` → `<auditReportRoot>/<MODULE>-<yyyy-mm-dd>.md`; mode `current`/`changes` → `<auditReportRoot>/code/<YYYYMMDD-HHMM>-<mode>.md` | READ-ONLY; mode `module` refresh `status` bằng script sau mọi verdict |
 | `/ndv-audit-fix` | `[<report-path> \| latest [code \| module <module-id>]] [--ids F-001,F-002] [--severity <min>]` | `audit-fixer` | code fixes + tick/`## Triage` trong report | never commit; triage code-fix / spec-fix → `/ndv-specify --from-audit` / register-fix → `/ndv-module-matrix` / defer; severity filter theo taxonomy đóng R7 |
 | `/ndv-onboard` | `[status \| matrix \| reverse-doc [<module-id>...]] (omit = hỏi)` | — (inline; `status` = script only; `matrix` → `module-architect` Mode brownfield; `reverse-doc` → `spec-writer` Mode as-built) | `onboard-<date>.md` / `modules.json` + `modules.md` / requirement as-built | reverse-doc: clarifications chờ owner |
@@ -274,9 +274,10 @@ Thứ tự theo pipeline. `argument-hint` khớp frontmatter của từng `SKILL
 
 ## Agents
 
-`code-auditor` được skill của nó spawn hai lần với vai khác nhau trong cùng một run: FINDER (quét,
-emit candidate) rồi VERIFIER (instance độc lập, cố refute candidate) — hai vai của MỘT agent, không
-phải hai agent. Cột Model: frontmatter (default) → routing per dispatch theo
+`code-auditor` được `/ndv-audit-code` spawn hai lần với vai khác nhau trong cùng một run: FINDER (quét,
+emit candidate) rồi VERIFIER (instance độc lập, cố refute candidate). `/ndv-plan` spawn vai
+PLAN-REVIEWER (chấm plan.md trước gate), `/ndv-implement` spawn vai FINDER cho phase review — các vai
+của MỘT agent, không phải nhiều agent. Cột Model: frontmatter (default) → routing per dispatch theo
 [Model routing](#model-routing).
 
 | Agent | Model | Tools | Dùng bởi | Quyền trên code |
@@ -284,7 +285,7 @@ phải hai agent. Cột Model: frontmatter (default) → routing per dispatch th
 | `spec-writer` | `opus` → sonnet cho back-propagation, cite-only | Read, Glob, Grep, Write, Edit | `/ndv-blueprint-to-spec` (workflow: Mode forward / fix / back-propagation / compose-specify); `/ndv-onboard` (`reverse-doc`, Mode as-built); `/ndv-specify` (contract back-propagation); `/ndv-sync` (cite-only) | READ-ONLY (ghi requirement.md + specify.md, không ghi code) |
 | `module-architect` | `opus` → fable cho blueprint-review; sonnet cho register, `<module-id>`, `--verify` fallback | Read, Glob, Grep, Write, Edit, Bash | `/ndv-blueprint` (Mode blueprint, Mode blueprint-review read-only); `/ndv-blueprint-to-spec` (workflow: Mode mapping read-only, Mode register); `/ndv-module-matrix`; `/ndv-onboard` (`matrix`, Mode brownfield) | READ-ONLY (ghi `blueprint.json`, `modules.json`) |
 | `module-implementer` | `sonnet` → opus MỘT lần sau vòng compile-fix fail thứ 2 của một phase | Read, Glob, Grep, Write, Edit, Bash | `/ndv-implement` | WRITE |
-| `code-auditor` | `fable` → sonnet cho FINDER chỉ có lens `naming` và/hoặc `ui` | Read, Grep, Glob, Bash | `/ndv-audit-code` — vai FINDER và vai VERIFIER | READ-ONLY |
+| `code-auditor` | `fable` → sonnet cho FINDER chỉ có lens `naming` và/hoặc `ui`, và FINDER phase review | Read, Grep, Glob, Bash | `/ndv-audit-code` — vai FINDER và vai VERIFIER; `/ndv-plan` — vai PLAN-REVIEWER; `/ndv-implement` — vai FINDER phase review | READ-ONLY |
 | `audit-fixer` | `sonnet` → opus cho cluster chứa finding `blocker`/`critical`; MỘT lần thử opus sau giới hạn verify 2 vòng | Read, Glob, Grep, Write, Edit, Bash | `/ndv-audit-fix` | WRITE |
 
 ## Model routing
@@ -311,7 +312,7 @@ workflow của `/ndv-blueprint-to-spec` dùng hằng `MODEL` đầu `workflow.js
 | `spec-writer` | `opus` | forward / as-built / compose-specify / fix: opus · back-propagation, cite-only: sonnet |
 | `module-architect` | `opus` | blueprint / mapping / full / brownfield: opus · blueprint-review: fable (instance độc lập, khác model author) · register, `<module-id>`, `--verify` fallback: sonnet |
 | `module-implementer` | `sonnet` | sonnet; sau vòng compile-fix fail thứ 2 của một phase → MỘT instance mới trên opus mang error delta trước khi báo user |
-| `code-auditor` | `fable` | VERIFIER: fable · FINDER: fable, trừ FINDER chỉ có lens `naming` và/hoặc `ui` → sonnet |
+| `code-auditor` | `fable` | VERIFIER, PLAN-REVIEWER: fable · FINDER: fable, trừ FINDER chỉ có lens `naming` và/hoặc `ui`, và FINDER phase review của `/ndv-implement` → sonnet |
 | `audit-fixer` | `sonnet` | sonnet; cluster chứa finding `blocker`/`critical` → opus; hết giới hạn verify 2 vòng → MỘT lần thử mới trên opus trước khi báo user |
 | workflow `/ndv-blueprint-to-spec` | — | hằng `MODEL`: analyst, critic, mapper, writer, fixer, reconciler, ambiguity, composer → opus · quoteVerifier, verifier, register, backprop → sonnet |
 
