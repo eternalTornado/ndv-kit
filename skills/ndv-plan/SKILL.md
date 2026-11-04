@@ -74,7 +74,7 @@ options.
 
 ## Phase 3 — Plan review (trước gate)
 
-1. Spawn (Task tool) `subagent_type: code-auditor`, model: fable, vai PLAN-REVIEWER: path plan.md ·
+1. Spawn (Task tool) `subagent_type: code-auditor`, model: opus, vai PLAN-REVIEWER: path plan.md ·
    specify.md · rule files của Phase 1 step 3 · entry modules.json. Agent type chưa đăng ký →
    `general-purpose` (cùng model) + dòng đầu prompt: "Read `.claude/ndvkit/agents/code-auditor.md`
    và làm đúng vai PLAN-REVIEWER trong đó".

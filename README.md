@@ -285,7 +285,7 @@ của MỘT agent, không phải nhiều agent. Cột Model: frontmatter (defaul
 | `spec-writer` | `opus` → sonnet cho back-propagation, cite-only | Read, Glob, Grep, Write, Edit | `/ndv-blueprint-to-spec` (workflow: Mode forward / fix / back-propagation / compose-specify); `/ndv-onboard` (`reverse-doc`, Mode as-built); `/ndv-specify` (contract back-propagation); `/ndv-sync` (cite-only) | READ-ONLY (ghi requirement.md + specify.md, không ghi code) |
 | `module-architect` | `opus` → fable cho blueprint-review; sonnet cho register, `<module-id>`, `--verify` fallback | Read, Glob, Grep, Write, Edit, Bash | `/ndv-blueprint` (Mode blueprint, Mode blueprint-review read-only); `/ndv-blueprint-to-spec` (workflow: Mode mapping read-only, Mode register); `/ndv-module-matrix`; `/ndv-onboard` (`matrix`, Mode brownfield) | READ-ONLY (ghi `blueprint.json`, `modules.json`) |
 | `module-implementer` | `sonnet` → opus MỘT lần sau vòng compile-fix fail thứ 2 của một phase | Read, Glob, Grep, Write, Edit, Bash | `/ndv-implement` | WRITE |
-| `code-auditor` | `fable` → sonnet cho FINDER chỉ có lens `naming` và/hoặc `ui`, và FINDER phase review | Read, Grep, Glob, Bash | `/ndv-audit-code` — vai FINDER và vai VERIFIER; `/ndv-plan` — vai PLAN-REVIEWER; `/ndv-implement` — vai FINDER phase review | READ-ONLY |
+| `code-auditor` | `opus` → sonnet cho FINDER chỉ có lens `naming` và/hoặc `ui`, và FINDER phase review | Read, Grep, Glob, Bash | `/ndv-audit-code` — vai FINDER và vai VERIFIER; `/ndv-plan` — vai PLAN-REVIEWER; `/ndv-implement` — vai FINDER phase review | READ-ONLY |
 | `audit-fixer` | `sonnet` → opus cho cluster chứa finding `blocker`/`critical`; MỘT lần thử opus sau giới hạn verify 2 vòng | Read, Glob, Grep, Write, Edit, Bash | `/ndv-audit-fix` | WRITE |
 
 ## Model routing
@@ -312,7 +312,7 @@ workflow của `/ndv-blueprint-to-spec` dùng hằng `MODEL` đầu `workflow.js
 | `spec-writer` | `opus` | forward / as-built / compose-specify / fix: opus · back-propagation, cite-only: sonnet |
 | `module-architect` | `opus` | blueprint / mapping / full / brownfield: opus · blueprint-review: fable (instance độc lập, khác model author) · register, `<module-id>`, `--verify` fallback: sonnet |
 | `module-implementer` | `sonnet` | sonnet; sau vòng compile-fix fail thứ 2 của một phase → MỘT instance mới trên opus mang error delta trước khi báo user |
-| `code-auditor` | `fable` | VERIFIER, PLAN-REVIEWER: fable · FINDER: fable, trừ FINDER chỉ có lens `naming` và/hoặc `ui`, và FINDER phase review của `/ndv-implement` → sonnet |
+| `code-auditor` | `sonnet` | VERIFIER, PLAN-REVIEWER: opus · FINDER: opus, trừ FINDER chỉ có lens `naming` và/hoặc `ui`, và FINDER phase review của `/ndv-implement` → sonnet |
 | `audit-fixer` | `sonnet` | sonnet; cluster chứa finding `blocker`/`critical` → opus; hết giới hạn verify 2 vòng → MỘT lần thử mới trên opus trước khi báo user |
 | workflow `/ndv-blueprint-to-spec` | — | hằng `MODEL`: analyst, critic, mapper, writer, fixer, reconciler, ambiguity, composer → opus · quoteVerifier, verifier, register, backprop → sonnet |
 
