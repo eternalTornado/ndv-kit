@@ -5,6 +5,407 @@ Bộ agents + skills PORTABLE cho vòng đời feature game project, format theo
 Kit không chứa reference cứng vào một project cụ thể — mọi giá trị per-project nằm ở
 `ndvkit.config.json`, mọi convention per-project defer về `.claude/rules/**` của project host.
 
+## ndvkit v2 — Tổng quan
+
+> **Trạng thái:** thiết kế v2 đã được duyệt và chốt các quyết định mở (2026-11-06), chưa triển khai. Các mục từ
+> [Cài đặt](#cài-đặt) trở xuống vẫn mô tả **v1 đang chạy** cho tới khi chuyển đổi xong.
+
+ndvkit v2 là bộ cấu hình harness cho Claude Code trên dự án Unity. Mục tiêu: nhanh và đúng ý
+hơn việc giao task thẳng cho agent, với ít token hơn v1.
+
+### Vì sao cần v2
+
+v1 tốn nhiều token hơn giao task thẳng, mà kết quả lại kém hơn: implement lâu, sai ý, audit mất
+thời gian. Bốn nguyên nhân gốc:
+
+- **Mất context giữa các bước.** Chuỗi requirement → specify → plan → tasks → implement bắt mỗi
+  bước đọc lại artifact của bước trước. Agent phải hiểu lại code qua tài liệu, vừa tốn token vừa
+  lệch dần.
+- **Intent bị pha loãng.** Spec do agent viết dài, người không đọc kỹ được. Sai ý từ đầu lọt qua
+  rồi bị khuếch đại ở các bước sau.
+- **Rules nạp quá nhiều.** Mọi agent đọc toàn bộ host rules + kit rules trước khi viết, kể cả khi
+  task chỉ chạm một file.
+- **Audit đắt.** Người phải đọc spec, report và code để đối chiếu, trong khi máy làm phần lớn
+  việc này nhanh và rẻ hơn.
+
+v2 giữ ưu điểm của giao task thẳng (context liền mạch, intent nguyên gốc) và chỉ thêm hai thứ:
+**chốt intent rẻ** và **verify bằng máy**.
+
+### Nguyên tắc thiết kế
+
+Token nên tiêu vào kiểm chứng kết quả, không tiêu vào viết tài liệu.
+
+1. **Ít artifact, nhiều verification.** Chỉ giữ tài liệu mà agent hoặc người thực sự đọc lại.
+2. **Intent chốt bằng acceptance criteria kiểm được.** Người duyệt criteria trong khoảng 1 phút,
+   không duyệt spec dài.
+3. **Workflow theo độ lớn task.** Không task nào phải đi qua đủ mọi bước.
+4. **Giữ context liền mạch.** Brief và implement chạy cùng session; chỉ tách session ở ranh giới
+   milestone.
+5. **Ép bằng máy trước, nhắc bằng chữ sau.** Rule nào kiểm được bằng code thì chuyển thành hook,
+   script hoặc test.
+6. **Audit bằng máy trước, người sau.** Người chỉ đọc diff stat, bảng criteria và findings.
+7. **Mỗi lỗi lặp lại thành một check mới.** Harness mạnh dần lên, còn rules không phình ra.
+8. **Skill nào xong cũng đề xuất bước tiếp theo.** Người không phải nhớ flow; xem
+   [Quy ước bước tiếp theo](#quy-ước-bước-tiếp-theo).
+
+### Tầng tài liệu: GDD → Blueprint → Brief
+
+v2 bỏ TDD như một bước bắt buộc. Blueprint là tầng duy nhất cấp project, ngắn và sống cùng code.
+
+| Tầng | Ai viết | Phạm vi | Agent đọc khi nào |
+| --- | --- | --- | --- |
+| GDD | Người | Design intent của game | Chỉ phần liên quan, được trích vào brief |
+| Blueprint | Agent đề xuất, người duyệt | Cả project: `.ndv/blueprint.json` (data) + `blueprint.html` (view do script sinh) | Mỗi lần viết L-brief hoặc brief chạm ranh giới module |
+| Brief | Agent viết, người duyệt criteria | Một task hoặc một feature | Suốt task |
+
+Blueprint giữ nguyên format v1: `blueprint.json` là data SoT, `ndv_blueprint.py` lo `--check`
+(schema, id, cycle, Foundation không depend `game`, cite GDD + code), `--render` (sinh
+`blueprint.html` từ `templates/blueprint-template.html`), `--approve` và `--code-graph`. Schema
+nằm ở `module-architect` (§Mode blueprint). Nội dung: band Foundation, Layer 1..n, core loop band,
+deps consumer → owner kèm contract, decisions, out of scope.
+
+Với project đã có code, `--code-graph` đưa SCC của code hiện có cho architect để reverse-engineer
+blueprint, rồi người duyệt. Milestone nào đổi ranh giới module thì cập nhật `blueprint.json` và chạy
+`ndv_blueprint.py --check` trong cùng commit; reviewer flag nếu thiếu. `deps.rules` sinh từ deps
+trong blueprint.
+
+**TDD theo vùng rủi ro** chỉ viết khi cần: netcode multiplayer, save schema và migration,
+performance budget mobile, hoặc khách freelance yêu cầu tài liệu nghiệm thu.
+
+### Phân tier S/M/L
+
+| Tier | Khi nào | Workflow | Người can thiệp |
+| --- | --- | --- | --- |
+| S | 1–2 file, yêu cầu rõ | Prompt thẳng, hooks lo verify | Đọc audit |
+| M | Feature nhỏ, nhiều file | `/ndv-brief` → duyệt → implement cùng session → verify → review | Duyệt criteria khoảng 1 phút + đọc audit |
+| L | Hệ thống mới, nhiều ngày | L-brief → các milestone, mỗi cái chạy như một task M → integration | Duyệt L-brief 10–15 phút, mỗi milestone 3–5 phút, playtest cuối |
+
+### Flow task S và M
+
+**Task S:** prompt thẳng như bình thường. Stop hook ép chạy `/ndv-verify` trước khi agent được báo xong.
+
+**Task M:**
+
+1. `/ndv-brief`: Explore subagent đọc code liên quan, giữ main context gọn.
+2. Agent viết brief tối đa khoảng một trang:
+    - **Goal:** 1–2 câu.
+    - **Acceptance criteria:** 3–7 dòng, mỗi dòng kiểm được. Ví dụ: "Bấm Retry khi hết mạng thì
+      gọi lại API tối đa 3 lần, test `RetryPolicyTests` pass".
+    - **Sẽ sửa:** danh sách file.
+    - **Out of scope.**
+    - **Câu hỏi mở:** agent hỏi ở đây, không tự đoán.
+3. Người duyệt acceptance criteria. Đây là điểm chặn sai ý rẻ nhất.
+4. Implement ngay trong cùng session.
+5. `/ndv-verify` cho đến khi xanh.
+6. Reviewer subagent đối chiếu diff với criteria.
+7. Người đọc audit rồi commit.
+
+### Flow task L
+
+Task L được cắt thành nhiều milestone (lát cắt dọc), mỗi milestone chạy như một task M trong một
+session mới.
+
+```text
+L-brief ──► Người duyệt ──► Milestone N (session mới) ──► Còn milestone? ──hết──► Integration
+            (10–15 phút)    đọc Decisions + progress.md        │                  full test + playtest
+                 ▲          mini-brief → build → verify        │
+                 │          reviewer → commit → progress.md    │
+                 │               │            ▲                │
+                 │           brief sai        └───── còn ──────┘
+                 │               ▼
+                 └───────── Replan (agent dừng, sửa brief)
+```
+
+**L-brief** (1–2 trang, ổn định suốt dự án):
+
+- Goal + acceptance criteria tổng, kiểm được.
+- Decisions: quyết định kiến trúc và lý do, sống qua nhiều session.
+- Milestones: mỗi cái một dòng goal + 2–4 criteria, rủi ro cao làm trước.
+- Out of scope.
+
+Có điểm mù kỹ thuật lớn thì thêm milestone 0 là spike: prototype vứt đi, chỉ để trả lời câu hỏi
+rồi cập nhật Decisions.
+
+**Quy tắc cắt milestone:** vừa một session, kết thúc ở trạng thái compile được, test xanh, commit
+được. Ví dụ Inventory + Save/Load + UI:
+
+| # | Milestone | Verify |
+| --- | --- | --- |
+| M1 | Data model + add/remove/stack (pure C#) | EditMode tests |
+| M2 | Save/Load inventory ra JSON | Test round-trip; file hỏng thì không crash |
+| M3 | UI hiển thị + kéo thả | PlayMode test cơ bản + người nhìn |
+| M4 | Nối gameplay: nhặt đồ, dùng đồ | PlayMode test + playtest |
+
+**Mỗi milestone** chỉ nạp Decisions + milestone hiện tại, `progress.md`, và code liên quan qua
+Explore subagent. Mini-brief khớp brief thì người liếc khoảng 30 giây. Mỗi milestone là một commit
+làm checkpoint.
+
+**`progress.md`** là bộ nhớ giữa các session, giữ ngắn:
+
+```markdown
+## Done
+- M1 ✅ (a1b2c3) — InventoryModel, stacking theo maxStack
+- M2 ✅ (d4e5f6) — SaveService; file hỏng → inventory rỗng + log warning
+## Current: M3
+## Known issues / nợ kỹ thuật
+- Chưa xử lý migrate khi đổi schema save (để sau M4)
+## Lệch so với brief
+- (trống)
+```
+
+**Replan:** khi phát hiện Decisions sai hoặc thứ tự milestone không hợp lý, agent dừng, đề xuất sửa
+brief và chờ người duyệt.
+
+**Integration:** chạy full test suite, đối chiếu criteria tổng, rồi người playtest. Game feel và UX
+không verify được bằng máy.
+
+Milestone độc lập có thể chạy song song bằng git worktree, nhưng chỉ nên làm sau vài dự án tuần
+tự, khi verify đã chắc.
+
+### Verify loop và hooks
+
+Agent không thể báo xong khi code chưa compile sạch và test chưa xanh. Đây là phần thực sự là
+harness của v2.
+
+`/ndv-verify` chạy qua Unity MCP:
+
+1. Compile check theo `verifyNote` trong `ndvkit.config.json` (`refresh_unity`, rồi `read_console`
+   lọc errors).
+2. `check-deps.sh` kiểm dependency direction (xem phần Rules).
+3. `run_tests` (Unity Test Framework, xem dưới) cho test assembly bị chạm, kèm toàn bộ EditMode
+   tests để bắt regression. Project chưa có test thì bước này bỏ qua và báo rõ.
+4. Đánh dấu ✅/❌ từng acceptance criteria.
+5. Ghi stamp `.ndv/verified.stamp`.
+
+**Stop hook** chặn agent kết thúc khi còn file `.cs` sửa sau stamp:
+
+```json
+// <project>/.claude/settings.json
+{ "hooks": { "Stop": [ { "hooks": [
+  { "type": "command", "command": "bash .claude/ndvkit/hooks/require-verify.sh" }
+] } ] } }
+```
+
+```bash
+#!/usr/bin/env bash
+# hooks/require-verify.sh
+input=$(cat)
+echo "$input" | grep -q '"stop_hook_active": *true' && exit 0   # tránh loop vô hạn
+changed=$( { git diff --name-only HEAD -- '*.cs'; git ls-files -o --exclude-standard -- '*.cs'; } )
+[ -z "$changed" ] && exit 0
+stamp=.ndv/verified.stamp
+if [ ! -f "$stamp" ] || [ -n "$(find $changed -newer "$stamp" 2>/dev/null)" ]; then
+  echo "Có .cs thay đổi chưa verify. Chạy /ndv-verify (compile + test) rồi mới kết thúc." >&2
+  exit 2
+fi
+```
+
+Exit code 2 chặn agent dừng và đưa thông báo ngược lại cho agent, nên nó tự sửa đến khi xanh.
+
+**Test runner** là Unity Test Framework (package `com.unity.test-framework`, NUnit), chạy qua Unity
+MCP: `run_tests` (lọc theo `mode`, `assembly_names`, `test_names`) rồi `get_test_job` lấy kết quả.
+
+| Loại | Chạy ở đâu | Tốc độ | Dùng cho | Khi nào verify chạy |
+| --- | --- | --- | --- | --- |
+| EditMode | Trong Editor, không vào Play | Mili-giây tới vài giây | Logic thuần C#: công thức damage, stacking inventory, state machine, save/load round-trip, validate config | Mọi lần verify |
+| PlayMode | Vào Play mode: có `Update`, coroutine, physics, scene | Chậm hơn (domain reload, `init_timeout` nên khoảng 120000 ms) | Spawn, scene flow, UI flow cơ bản | Khi brief ghi rõ, và ở integration tier L |
+
+- Criteria nào kiểm được bằng test thì brief ghi tên test; agent viết test cùng lúc với code.
+- Criteria về game feel hoặc UX không test: reviewer và người kiểm.
+- Test nằm trong test asmdef (reference `UnityEngine.TestRunner`, `UnityEditor.TestRunner`,
+  `nunit.framework.dll`). Asmdef không reference được `Assembly-CSharp`, nên module có logic cần test
+  phải có asmdef riêng: test runner và mức 3 của ép dependency đi cùng nhau.
+- Chỉ viết test cho logic dễ test trước; không đặt mục tiêu coverage.
+
+### Audit: reviewer subagent
+
+Người audit trong 2–3 phút, vì máy đã đối chiếu trước.
+
+Reviewer subagent có context sạch và không thấy quá trình làm, nên không "chấm bài của chính
+mình". Nó chỉ nhận acceptance criteria, `git diff` và `blueprint.json` (để bắt pattern lạ hoặc
+module mới chưa khai báo). Nó trả về tối đa 5 điểm lệch, mỗi điểm có severity, kèm cờ nếu ranh giới module
+đổi mà blueprint chưa cập nhật.
+
+Người chỉ đọc ba thứ: diff stat, bảng criteria ✅/❌ từ `/ndv-verify`, và findings của reviewer.
+
+### Rules và ép dependency
+
+Rules ít, nạp theo scope, và ưu tiên ép bằng máy.
+
+- `CLAUDE.md` dưới 100 dòng: project map, lệnh build/test, vài nguyên tắc không được vi phạm.
+- Rules chi tiết nằm trong `.claude/rules/*.md` có `paths:` frontmatter (ví dụ
+  `Assets/Scripts/Network/**`), chỉ nạp khi chạm file liên quan.
+- Rule kiểm được bằng code (naming, cấm `Find*` trong `Update`, dependency) chuyển thành script,
+  test hoặc analyzer.
+
+Namespace một mình không chặn được gì: không có asmdef thì mọi script compile chung vào
+`Assembly-CSharp`, mọi type `public` gọi được từ mọi nơi. v2 ép dependency theo ba mức:
+
+| Mức | Cách | Độ chính xác | Chi phí |
+| --- | --- | --- | --- |
+| 1 | Namespace + `check-deps.sh` (grep theo `.ndv/deps.rules`) | Bắt phần lớn; lọt khi dùng alias hoặc `using` cha | Khoảng 15 phút, chạy dưới 1 giây |
+| 2 | Architecture test bằng Mono.Cecil, hoặc Roslyn analyzer severity Error | Resolve type thật, cả trong thân hàm | Vài giờ |
+| 3 | asmdef dần dần, bắt đầu từ `Core` | Compile fail khi vi phạm; thêm compile incremental | Tùy độ rối của project |
+
+Khởi đầu: mức 1 ngay, tách asmdef cho `Core` khi có dịp. Asmdef không thể reference
+`Assembly-CSharp`, nên `Core` tự động không phụ thuộc được gameplay hay UI.
+
+```text
+# .ndv/deps.rules — <thư mục> <namespace bị cấm>
+Assets/Scripts/Core   Game.Gameplay
+Assets/Scripts/Core   Game.UI
+Assets/Scripts/UI     Game.Save
+```
+
+```bash
+#!/usr/bin/env bash
+# scripts/check-deps.sh
+fail=0
+while read -r dir ns; do
+  [[ -z "$dir" || "$dir" == \#* ]] && continue
+  hits=$(grep -rnF "$ns" "$dir" --include='*.cs')
+  [ -n "$hits" ] && { echo "✗ $dir không được dùng $ns:"; echo "$hits"; fail=1; }
+done < .ndv/deps.rules
+exit $fail
+```
+
+### Vòng học từ lỗi: `/ndv-lesson`
+
+Mỗi lỗi agent lặp lại lần thứ hai được biến thành một check, để nó không xảy ra lần thứ ba. Khi gọi
+`/ndv-lesson`, agent chọn theo thứ tự ưu tiên:
+
+1. Thêm một check máy chạy được: dòng mới trong `deps.rules`, một test, hoặc một hook.
+2. Nếu không kiểm được bằng máy, thêm **một dòng** vào rules file đúng scope.
+
+Khi một vi phạm lọt qua check hiện có (ví dụ grep bỏ sót), đó là tín hiệu nâng mức ép dependency.
+
+### Cấu trúc v2
+
+```text
+.claude/ndvkit/                        # kit (repo này)
+├── ndvkit.config.json                 # ndvRoot: ".ndv" thay cho matrixRoot / specsRoot / auditReportRoot
+├── skills/
+│   ├── ndv-blueprint/                 # giữ từ v1
+│   │   └── scripts/
+│   │       ├── ndv_blueprint.py       # --code-graph · --check · --render · --approve
+│   │       └── ndv_check.py           # chỉ giữ phần ndv_blueprint.py dùng (config, cite, CodeIndex)
+│   ├── ndv-brief/                     # brief task M; chế độ L cho L-brief + milestones
+│   ├── ndv-verify/                    # compile, deps, test, bảng criteria, stamp
+│   └── ndv-lesson/                    # lỗi lặp lại → check mới hoặc một dòng rule
+├── agents/
+│   ├── module-architect.md            # chỉ còn Mode blueprint + Mode blueprint-review
+│   └── ndv-reviewer.md                # tối đa 5 điểm lệch có severity
+├── hooks/require-verify.sh
+├── scripts/check-deps.sh
+├── rules/                             # tách dần thành check + rules có scope
+└── templates/
+    ├── blueprint-template.html        # giữ từ v1
+    ├── brief-template.md
+    ├── l-brief-template.md
+    └── progress-template.md
+
+<project>/
+├── CLAUDE.md                          # < 100 dòng
+├── .claude/settings.json              # Stop hook
+├── .claude/rules/*.md                 # rules có paths: frontmatter
+└── .ndv/                              # mọi artifact của kit
+    ├── blueprint.json
+    ├── blueprint.html                 # script sinh
+    ├── deps.rules
+    ├── verified.stamp                 # do verify sinh, gitignore
+    └── <feature>/brief.md, progress.md   # chỉ tier L
+```
+
+### Quy ước bước tiếp theo
+
+Mọi skill v2 kết thúc bằng một dòng đề xuất bước tiếp theo, dựa trên **kết quả thực tế** của lần
+chạy đó chứ không theo thứ tự cố định:
+
+```text
+**Tiếp theo:** `/ndv-verify` — vừa sửa 4 file .cs, chưa verify.
+```
+
+- Một đề xuất chính, ghi đúng lệnh kèm argument để chạy được ngay. Nếu kết quả rẽ nhánh, thêm tối
+  đa một nhánh phụ.
+- Chỉ đề xuất, không tự chạy bước sau khi bước đó cần người duyệt (criteria, L-brief, replan,
+  commit).
+- Không có bước hợp lý nào thì nói rõ "Task xong", không bịa bước.
+
+| Skill xong với kết quả | Tiếp theo |
+| --- | --- |
+| `/ndv-blueprint`, `--check` còn finding blocking | Sửa theo finding, chạy lại `/ndv-blueprint --update` |
+| `/ndv-blueprint`, đã approve | Viết hoặc cập nhật `.ndv/deps.rules` từ deps, rồi `/ndv-brief <feature>` |
+| `/ndv-brief` (task M), có câu hỏi mở | Người trả lời câu hỏi mở |
+| `/ndv-brief` (task M), criteria chờ duyệt | Người duyệt criteria → agent implement trong session này → `/ndv-verify` |
+| `/ndv-brief` chế độ L, L-brief chờ duyệt | Người duyệt L-brief → session mới: `/ndv-brief <feature> M1` |
+| `/ndv-verify` đỏ | Không đề xuất: agent tự sửa (Stop hook ép) |
+| `/ndv-verify` đỏ cùng một lỗi lần thứ hai | `/ndv-lesson` |
+| `/ndv-verify` xanh, task S | Người xem diff rồi commit |
+| `/ndv-verify` xanh, task M hoặc milestone | Spawn `ndv-reviewer` |
+| `ndv-reviewer` có finding severity cao | Sửa finding → `/ndv-verify` |
+| `ndv-reviewer` flag blueprint chưa cập nhật | Sửa `.ndv/blueprint.json` → `ndv_blueprint.py --check` |
+| `ndv-reviewer` sạch, task M | Người đọc audit rồi commit. Task xong |
+| `ndv-reviewer` sạch, milestone còn tiếp | Cập nhật `progress.md` + commit → session mới: `/ndv-brief <feature> M<n+1>` |
+| `ndv-reviewer` sạch, milestone cuối | Integration: full test (EditMode + PlayMode) + người playtest |
+| Milestone phát hiện brief sai | Replan: agent đề xuất sửa `brief.md`, người duyệt |
+| `/ndv-lesson` thêm check mới | `/ndv-verify` để chắc check mới không báo nhầm trên code hiện tại |
+
+### Thay đổi so với v1
+
+| v1 | v2 |
+| --- | --- |
+| GDD → blueprint → requirement.md (EARS) + specify.md → plan.md → tasks.md → implement | GDD → Blueprint (giữ nguyên) → Brief theo tier S/M/L |
+| `/ndv-specify` + `/ndv-plan` | Gộp thành `/ndv-brief` |
+| `/ndv-tasks` | Bỏ; task L chia milestone trong L-brief |
+| `/ndv-implement` (sau gate plan + tasks) | Implement trong cùng session với brief |
+| `/ndv-sync` | Bỏ; thay bằng `progress.md` và cập nhật blueprint trong cùng commit |
+| Đọc toàn bộ host rules + kit rules trước khi viết | Rules có scope + check bằng máy |
+| Người đọc spec + report để đối chiếu | `/ndv-verify` + reviewer subagent |
+
+**Thành phần v1: giữ hay bỏ.** Nguyên tắc: bỏ mọi thứ v2 không cần.
+
+| Thành phần v1 | Quyết định | Lý do / thay bằng |
+| --- | --- | --- |
+| `/ndv-blueprint`, `ndv_blueprint.py`, `blueprint-template.html` | Giữ | Tầng blueprint của v2 |
+| `module-architect` | Giữ, rút gọn | Chỉ còn Mode blueprint + blueprint-review; bỏ mapping, register, full, module, brownfield |
+| `ndv_check.py` | Giữ một phần | Chuyển về `ndv-blueprint/scripts/`, chỉ giữ phần `ndv_blueprint.py` import |
+| `/ndv-blueprint-to-spec` + `workflow.js` | Bỏ | Brief thay cho requirement + specify |
+| `/ndv-module-matrix` + `modules.json` | Bỏ | `blueprint.json` là module map duy nhất; bỏ luôn `check_matrix` trong `ndv_blueprint.py` |
+| `/ndv-specify`, `/ndv-plan`, `/ndv-tasks`, `/ndv-implement`, `/ndv-sync` | Bỏ | `/ndv-brief` + implement cùng session + `progress.md` |
+| `/ndv-audit-code` | Bỏ | `ndv-reviewer` mỗi task; audit toàn codebase khi cần thì prompt trực tiếp |
+| `/ndv-audit-fix` + `audit-fixer` | Bỏ | Findings sửa ngay trong session, verify loop ép xanh |
+| `/ndv-onboard` | Bỏ | `/ndv-blueprint --code-graph` cho project đã có code |
+| `spec-writer` | Bỏ | Không còn spec |
+| `module-implementer` | Bỏ | Implement ở main session để giữ context |
+| `code-auditor` | Thay | Vai FINDER + severity R7 + anti-hallucination thành `ndv-reviewer`; bỏ VERIFIER, PLAN-REVIEWER |
+| `requirement`, `specify`, `plan`, `tasks` templates | Bỏ | Thay bằng brief, L-brief, progress templates |
+| `ndvkit.config.json` | Sửa | `ndvRoot: ".ndv"`; bỏ `matrixRoot`, `specsRoot`, `auditReportRoot`; cập nhật `verifyNote` khi có test |
+
+**Lộ trình chuyển đổi:**
+
+1. Thêm Stop hook + `/ndv-verify` (compile + console + check-deps; test khi project có).
+2. Đổi config sang `ndvRoot: ".ndv"`, chuyển blueprint hiện có vào `.ndv/`, rút gọn
+   `module-architect`, tách `ndv_check.py`. Viết `deps.rules` từ deps trong blueprint.
+3. Thêm `/ndv-brief` + templates, rồi xóa các skill, agent và template bị bỏ ở bảng trên.
+4. Tách rules hiện có: phần kiểm được bằng máy thành check, phần còn lại thành rules có scope.
+5. Thêm `ndv-reviewer` và `/ndv-lesson`.
+6. Khi có module cần test: tách asmdef + test asmdef cho module đó, bật bước `run_tests`.
+
+### Đo lường hiệu quả
+
+v2 chỉ đáng giữ nếu thắng việc giao task thẳng trên task thật. Thử trên 5 task thật, so v2 với giao
+task thẳng theo ba chỉ số:
+
+| Chỉ số | Cách đo |
+| --- | --- |
+| Token mỗi task | Usage của session Claude Code |
+| Thời gian đến khi xanh | Từ prompt đầu đến lần `/ndv-verify` pass |
+| Số vòng sửa lại ý | Số lần người phải nói "không phải ý mình" |
+
+Nếu v2 không thắng ở chỉ số thứ ba, brief chưa đủ sắc. Chỗ cần chỉnh là acceptance criteria, không
+phải thêm bước.
+
+
 ## Cài đặt
 
 Repo này CHÍNH LÀ nội dung của folder `<project>/.claude/ndvkit/` — không có bước "copy
