@@ -4,6 +4,18 @@ File này là nơi DUY NHẤT ghi amendment cho rules của kit (written rationa
 theo [Shared/constitution.md](Shared/constitution.md) §Governance). Body của rule file chỉ
 chứa current state (R9.1).
 
+## 2026-11-06 — ndvkit v2
+
+- **Rationale**: v1 nạp toàn bộ rules cho mọi agent, kể cả khi task chỉ chạm một file, và còn trỏ tới
+  artifact của pipeline spec đã bỏ. v2 nạp rule theo scope và ép bằng máy những gì kiểm được.
+- Mọi rule trừ `Shared/constitution.md`, `Shared/ai-discipline.md`, `Shared/ai-discipline-session.md`
+  có `paths:` frontmatter: chỉ load khi chạm file khớp glob (v2: rules ít, nạp theo scope).
+- Bỏ tham chiếu tới pipeline v1 (`modules.json`, `<specsRoot>`, `/ndv-audit-code`, `/ndv-onboard`,
+  `code-auditor`): kiến trúc = `<ndvRoot>/blueprint.json`, hướng dependency = `<ndvRoot>/deps.rules`,
+  review = agent `ndv-reviewer`, enforcement = `/ndv-verify`.
+- Migration: host đã adopt bộ rules cũ → copy lại các file đổi, hoặc chỉ thêm frontmatter `paths:`
+  tương ứng vào bản copy của host.
+
 ## 2026-10-28 — Host rules nạp đủ, thắng plan, chặn implement khi repo lệch
 
 - **Rationale**: host (supermarket-simulator) có rule `.claude/rules/module-convention.md` ghi code

@@ -26,10 +26,9 @@ chỉ khi file thật sự nằm đó) — tên ngắn `Unity/…`, `Shared/…`
 dẫn tương đối so với root của bộ rules chứa nó, không ghép với `<rulesRoot>`; web → kèm `#anchor`
 hoặc literal quote ≤2 câu. Symbol phải grep match trong file tại thời điểm ghi.
 
-**Audit Evidence carve-out**: report của `/ndv-audit-code` là snapshot tại một commit
-(frontmatter `git`). Evidence dùng `<path>::<Type>.<Member>:<line>` cho file có symbol;
-`<path>:<line>` + literal quote cho file không có symbol (markup, stylesheet, data, asset).
-Fixer verify bằng literal quote, không bằng line — quote lệch → `stale`.
+**Review Evidence carve-out**: finding của `ndv-reviewer` là snapshot của một diff. Evidence dùng
+`<path>:<line>` + literal quote ≤2 câu (mọi loại file). Người sửa verify bằng literal quote, không
+bằng line — quote lệch → `stale`.
 
 **BANNED**:
 
@@ -66,7 +65,7 @@ Mọi fact / value / decision phải kèm: `<path>#<section>` (doc) hoặc `<pat
 location đó trong session hiện tại.
 
 Cite vào code: symbol phải grep-match trong file tại thời điểm ghi artifact. Anchor code kế
-thừa từ artifact thượng nguồn (requirement, specify, modules.json, audit report) mà chưa mở lại
+thừa từ artifact thượng nguồn (brief, blueprint, progress, review finding) mà chưa mở lại
 file trong session này KHÔNG được ghi làm cite của artifact hiện tại — đổi sang symbol đã
 verify, hoặc bỏ anchor và giữ claim ở dạng không cite code.
 
@@ -139,7 +138,7 @@ Mọi finding trong research / audit / analysis artifact phải có 3 phần:
 3. **Impact**: 1 câu giải thích relevance / hậu quả
 
 **Severity** (tập đóng, SoT tại đây): `blocker · critical · high · medium · low · info`.
-Guide (điều kiện nào rơi vào mức nào) sống trong agent `code-auditor`; không mint mức mới,
+Guide (điều kiện nào rơi vào mức nào) sống trong agent `ndv-reviewer`; không mint mức mới,
 không viết hoa biến thể.
 
 **BANNED**:

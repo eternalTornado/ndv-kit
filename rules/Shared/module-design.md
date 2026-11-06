@@ -1,3 +1,9 @@
+---
+paths:
+  - ".ndv/**"
+  - "**/*.asmdef"
+---
+
 # Module design — MD rules
 
 Luật thiết kế ranh giới module, cross-stack. `module-architect` áp khi viết blueprint (§Mode
@@ -34,8 +40,8 @@ chỉ được là warning hoặc review signal, không bao giờ blocking.
 |---|---|---|---|
 | MD-10 | Edge = "uses", chiều consumer → owner. `kind`: `call` caller → callee · `event` subscriber → publisher · `data` reader → provider. Mỗi edge cite nhu cầu phía consumer (`source` có quote, hoặc `decision`). Mũi tên trong diagram GDD là ảnh hưởng / luồng dữ liệu — không copy làm dependency; arrow bị đảo / bỏ ghi vào `gddArrows`. | S! (kind, cite, quote), R (chiều) | Bass et al., *Software Architecture in Practice* ch.3 (uses ≠ calls) |
 | MD-11 | Không cycle (SCC >1 module). Gỡ theo thứ tự: chuyển responsibility sang module phụ thuộc → tách concept chung xuống thấp → interface ở phía thấp (DIP) → sandwich split → event (chỉ cho fact 1→N không cần reply). | S! | Martin ADP (*Clean Architecture* ch.14); Parnas 1979 |
-| MD-12 | Band do architect khai báo; layer của blueprint luôn TÍNH bởi script (không ghi vào blueprint.json): row Foundation theo dep nội bộ Foundation, `Layer k` của band game theo dep game (dep Foundation tính 0). `layer` của modules.json giữ nghĩa topological, do `module-architect` tính theo §Layering rules. | script | `module-architect` §Layering rules |
-| MD-13 | Foundation chỉ depend Foundation, engine, package. Foundation → Foundation được phép khi không cycle. | S! (blueprint + modules.json) | Sitecore Helix layers; Unity asmdef referencing |
+| MD-12 | Band do architect khai báo; layer của blueprint luôn TÍNH bởi script (không ghi vào blueprint.json): row Foundation theo dep nội bộ Foundation, `Layer k` của band game theo dep game (dep Foundation tính 0). | script | `ndv_blueprint.py` |
+| MD-13 | Foundation chỉ depend Foundation, engine, package. Foundation → Foundation được phép khi không cycle. | S! (blueprint; code qua `deps.rules`) | Sitecore Helix layers; Unity asmdef referencing |
 | MD-14 | Game → game là hợp lệ (chính nó tạo Layer 1..n). Chuỗi dài = signal đẩy concept chung xuống thấp. | R | Helix "feature không depend feature" — KHÔNG áp |
 | MD-15 | Module hub (nhiều consumer) chỉ lộ id + abstraction; edge từ module ổn định sang module biến động là signal xem lại (instability I = Ce/(Ca+Ce)). | R | Martin SDP/SAP (*Clean Architecture* ch.14) |
 | MD-16 | Composition root (`role: composition`: start-up order, wiring, scene load) ở band game, consume mọi module nó khởi động; chỉ composition root khác (vd app scope → scene scope) được depend nó. Không bao giờ ở Foundation. | S! (`role-placement`) | Boss Room `ApplicationController` + lifetime scope; Unity execution order không đảm bảo |

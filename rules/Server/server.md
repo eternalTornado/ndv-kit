@@ -1,3 +1,8 @@
+---
+paths:
+  - "**/*.go"
+---
+
 # Go server structure
 
 This standard governs how the game server source (Go) is laid out — packages, layers,

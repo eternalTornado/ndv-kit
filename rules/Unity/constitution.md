@@ -1,3 +1,8 @@
+---
+paths:
+  - "**/*.cs"
+---
+
 # Unity Project Constitution
 
 Core engineering principles for Unity projects. Non-negotiable rules that supersede informal

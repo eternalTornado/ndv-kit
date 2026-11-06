@@ -1,3 +1,12 @@
+---
+paths:
+  - "**/*.cs"
+  - "**/*.go"
+  - "**/*.ts"
+  - "**/*.js"
+  - "**/*.py"
+---
+
 # Coding Style
 
 ## Core Principles

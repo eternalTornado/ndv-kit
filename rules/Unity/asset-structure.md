@@ -1,3 +1,8 @@
+---
+paths:
+  - "Assets/**"
+---
+
 # Asset Structure — placement & loading principles
 
 Quy tắc đặt asset (art 2D, 3D model, content per-entity, audio, third-party). Cây thư mục

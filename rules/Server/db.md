@@ -1,3 +1,9 @@
+---
+paths:
+  - "**/*.sql"
+  - "**/*.go"
+---
+
 # PostgreSQL schema standard
 
 This standard governs naming, keys, data types, and integrity for the game server database

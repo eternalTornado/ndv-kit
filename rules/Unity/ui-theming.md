@@ -1,3 +1,10 @@
+---
+paths:
+  - "**/*.uxml"
+  - "**/*.uss"
+  - "**/*.tss"
+---
+
 # UI Theming & Reskin — design token, screen skeleton, reuse
 
 Chuẩn theming cho UI Toolkit: client phải reskin được như swap CSS theme trên web — đổi theme

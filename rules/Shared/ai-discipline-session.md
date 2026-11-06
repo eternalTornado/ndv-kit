@@ -61,13 +61,13 @@ rules. Khi host chưa có, default của kit:
 | Id allocation invariants | `Shared/id-plan.md` (giá trị cụ thể: host rules) |
 | Naming per stack | stack rules (`Unity/conventions.md`, `Server/server.md`…) |
 | Trust boundary (authority) | `Unity/security.md` |
-| Module architecture đã approve (band, ranh giới, deps thiết kế) | `<matrixRoot>/blueprint.json` (`/ndv-blueprint`) |
+| Module architecture đã approve (band, ranh giới, deps thiết kế) | `<ndvRoot>/blueprint.json` (`/ndv-blueprint`) |
 | Luật thiết kế module (MD rules) | `Shared/module-design.md` |
-| Module dependency hiện trạng | `<matrixRoot>/modules.json` (register, pipeline sinh) |
-| Module contract per module | `<specsRoot>/<NNN>_<MODULE>/` artifacts |
+| Hướng dependency được phép (máy kiểm) | `<ndvRoot>/deps.rules` (dẫn từ blueprint; `scripts/check-deps.sh`) |
+| Task đang làm | brief trong session (task M) · `<ndvRoot>/<feature>/brief.md` + `progress.md` (task L) |
 | GDD content (gameplay rules, balance) | `<gddRoot>/**` (Design managed) |
 | Severity taxonomy (audit) | `ai-discipline.md` §R7 |
-| Audit protocol (finder/verifier, evidence, severity guide) | agent `code-auditor` |
+| Review protocol (evidence, severity guide) | agent `ndv-reviewer` |
 | Glossary (canonical term per domain) | host rules |
 | Amendment history của rules kit | `CHANGELOG.md` |
 
@@ -125,8 +125,8 @@ Không có section này = vi phạm.
 
 ## Enforcement
 
-- `/ndv-audit-code` của kit và audit skill riêng của host (nếu có) flag vi phạm theo format
-  R7 + severity.
+- `/ndv-verify` (compile, `check-deps.sh`, `<ndvRoot>/checks/*.sh`, test) và `ndv-reviewer` của kit,
+  cùng audit skill riêng của host (nếu có), flag vi phạm theo format R7 + severity.
 - Human review: code review flag vi phạm; AI không self-approve.
 
 ## Governance

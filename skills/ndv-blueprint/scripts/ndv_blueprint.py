@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""ndv_blueprint.py — deterministic check / render / approve for <matrixRoot>/blueprint.json.
+"""ndv_blueprint.py — deterministic check / render / approve for <ndvRoot>/blueprint.json.
 
-Run from the host repo root. Python 3.8+, stdlib only. Reuses config + cite resolvers of
-ndv-sync/scripts/ndv_check.py. Rule ids (MD-xx): <kitRulesRoot>/Shared/module-design.md.
+Run from the host repo root. Python 3.8+, stdlib only. Config + cite resolvers live in
+ndv_common.py beside this file. Rule ids (MD-xx): <kitRulesRoot>/Shared/module-design.md.
 
-  --check            validate schema, graph, band / role rules, cites, modules.json conformance
+  --check            validate schema, graph, band / role rules, cites
   --render           --check, then write blueprint.html from <templates>/blueprint-template.html
   --approve DATE     --check, then set approved / approvedDate / approvedDigest
                      (refused on any blocking finding or open decision)
@@ -22,8 +22,8 @@ import os
 import re
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "ndv-sync", "scripts"))
-import ndv_check as nc
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+import ndv_common as nc
 
 SCHEMA = "ndv-blueprint/1"
 ID_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
@@ -40,9 +40,9 @@ STRUCTURAL = {"schema", "bad-id", "duplicate-id", "unknown-module", "self-dep", 
 BLOCKING = STRUCTURAL | {
     "foundation-depends-on-game", "missing-extends", "missing-source", "broken-cite", "duplicate-data",
     "shared-wraps", "forbidden-dep", "role-placement", "paths-overlap", "scc-split",
-    "open-decision-approved", "approval-void", "matrix-band-violation",
+    "open-decision-approved", "approval-void",
 }
-GATE_KINDS = {"approval-void", "matrix-band-violation"}
+GATE_KINDS = {"approval-void"}
 FENCE_RE = re.compile(r"^\s*(`{3,}|~{3,})(.*)$")
 NUM_RE = re.compile(r"^§?\s*([0-9]+(?:\.[0-9]+)*)\.?(?:\s|$)")
 
@@ -546,28 +546,6 @@ def check_usage(bp, mods, pairs, rep):
             rep.add("isolated", mid, "no dependency, no consumer, no loop stage — cut it or wire it")
 
 
-def check_matrix(cfg, cache, mods, pairs, rep):
-    path = nc.matrix_json_path(cfg)
-    if not path or not os.path.isfile(path):
-        return
-    modules, _ = nc.load_modules(path, cache)
-    for m in modules or []:
-        mid = m.get("id") if isinstance(m, dict) else None
-        if not isinstance(mid, str):
-            continue
-        if mid not in mods:
-            rep.add("unlisted-in-blueprint", mid, "in modules.json, not in blueprint")
-            continue
-        edges = [d for key in ("deps", "plannedDeps") if isinstance(m.get(key), list) for d in m[key] if isinstance(d, str)]
-        for dep in sorted(set(edges)):
-            if dep not in mods:
-                continue
-            if mods[mid].get("band") == "foundation" and mods[dep].get("band") == "game":
-                rep.add("matrix-band-violation", "{} -> {}".format(mid, dep), "modules.json edge breaks the Foundation band (MD-13)")
-            elif (mid, dep) not in pairs:
-                rep.add("edge-undeclared", "{} -> {}".format(mid, dep), "modules.json edge not declared in blueprint")
-
-
 def run_checks(bp, cfg, cache):
     rep = Report()
     check_schema(bp, rep)
@@ -584,7 +562,6 @@ def run_checks(bp, cfg, cache):
         check_architecture(bp, mods, pairs, rep)
         check_paths(cfg, cache, mods, extends_owners, decided, rep)
         check_usage(bp, mods, pairs, rep)
-        check_matrix(cfg, cache, mods, pairs, rep)
     dropped = rep.dismiss(bp.get("dismissed"))
     return rep, mods, pairs, dropped
 
@@ -718,9 +695,9 @@ def main(argv=None):
 
 
 def run(argv):
-    p = argparse.ArgumentParser(prog="ndv_blueprint.py", description="Check / render / approve <matrixRoot>/blueprint.json. Run from the host repo root.")
+    p = argparse.ArgumentParser(prog="ndv_blueprint.py", description="Check / render / approve <ndvRoot>/blueprint.json. Run from the host repo root.")
     p.add_argument("--config", default=".claude/ndvkit/ndvkit.config.json")
-    p.add_argument("--blueprint", default=None, help="default: <matrixRoot>/blueprint.json")
+    p.add_argument("--blueprint", default=None, help="default: <ndvRoot>/blueprint.json")
     mode = p.add_mutually_exclusive_group(required=True)
     mode.add_argument("--check", action="store_true")
     mode.add_argument("--render", action="store_true")
@@ -745,7 +722,7 @@ def run(argv):
     if args.approve and not DATE_RE.match(args.approve):
         sys.stderr.write("ERROR: --approve needs yyyy-mm-dd\n")
         return 2
-    path = args.blueprint or os.path.join(cfg.get("matrixRoot") or "", "blueprint.json")
+    path = args.blueprint or os.path.join(cfg.get("ndvRoot") or ".ndv", "blueprint.json")
     bp = load_blueprint(path)
     if bp is None:
         return 2

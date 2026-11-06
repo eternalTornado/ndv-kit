@@ -1,3 +1,10 @@
+---
+paths:
+  - "**/*.uxml"
+  - "**/*.uss"
+  - "**/*.cs"
+---
+
 # Quy tắc đặt tên trong Unity UI Toolkit
 
 | Thành phần UI | Định dạng (Casing) | Ví dụ | Quy ước / Quy chuẩn | Mục đích & Lưu ý |

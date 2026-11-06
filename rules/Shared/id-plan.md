@@ -1,3 +1,11 @@
+---
+paths:
+  - "**/*.cs"
+  - "**/*.go"
+  - "**/*.sql"
+  - "**/*.json"
+---
+
 # Id plan — allocation invariants
 
 > File này giữ INVARIANT về id allocation. Bảng range/giá trị CỤ THỂ là per-project —

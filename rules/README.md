@@ -13,7 +13,10 @@ Bộ rules DEFAULT của kit — dùng khi project host KHÔNG tự define rules
 
 - **Không copy**: agents/skills của kit tự đọc từ `kitRulesRoot` (config) khi cần — host không phải làm gì.
 - **Adopt (khuyến nghị cho project mới)**: copy folder này vào `.claude/rules/` của project để
-  auto-load mỗi session (file có `paths:` frontmatter chỉ load khi edit file khớp glob).
+  auto-load. Mọi file trừ `Shared/constitution.md`, `Shared/ai-discipline*.md` có `paths:` frontmatter
+  nên chỉ load khi chạm file khớp glob — context mỗi session nhẹ.
+- **Ép bằng máy trước, nhắc bằng chữ sau**: rule nào kiểm được bằng code (dependency, pattern cấm)
+  thì đưa vào `<ndvRoot>/deps.rules` hoặc `<ndvRoot>/checks/*.sh` qua `/ndv-lesson`, không chỉ viết ở đây.
   Sau khi adopt, project chỉnh sửa bản copy = định nghĩa rules riêng — bản trong kit giữ nguyên làm default.
 
 ## 3 nhóm
@@ -26,8 +29,8 @@ Bộ rules DEFAULT của kit — dùng khi project host KHÔNG tự define rules
 
 ## Register documents (KHÔNG nằm trong bộ này)
 
-Feature matrix / module map / project reference là REGISTER per-project (state, không phải rule) —
-pipeline ndvkit sinh và maintain chúng tại `<matrixRoot>/modules.json` (+ view `modules.md` do script sinh).
+Kiến trúc module và hướng dependency là REGISTER per-project (state, không phải rule) — ndvkit sinh
+và maintain chúng tại `<ndvRoot>/blueprint.json` (+ view `blueprint.html`) và `<ndvRoot>/deps.rules`.
 Rule chỉ định INVARIANT; register ghi hiện trạng.
 
 ## Thêm rule mới

@@ -1,3 +1,8 @@
+---
+paths:
+  - "**/*.cs"
+---
+
 # Unity Naming Conventions
 
 Naming rules for Unity C#, assets, Addressables, UI Toolkit, and serialized data.

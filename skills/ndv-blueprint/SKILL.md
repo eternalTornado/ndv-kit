@@ -1,6 +1,6 @@
 ---
 name: ndv-blueprint
-description: "Bước 0 pipeline ndvkit (architecture): GDD folder → phân tích system design → đề xuất module → <matrixRoot>/blueprint.json + blueprint.html (module blueprint: band Foundation tái dùng cross-project ở trên cùng → Layer 1..n, band core loop, edge consumer → owner). Gate: user chốt decision + approve report trước khi /ndv-blueprint-to-spec viết requirement.md. Idempotent: GDD đổi = --update."
+description: "Tầng kiến trúc cấp project của ndvkit: GDD folder (+ code hiện có) → đề xuất module → <ndvRoot>/blueprint.json + blueprint.html (band Foundation → Layer 1..n, band core loop, edge consumer → owner) → .ndv/deps.rules. Gate: user chốt decision + approve. Idempotent: GDD hoặc ranh giới module đổi = --update."
 argument-hint: "[<gdd-folder>] [--update]"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash, Write, Edit, Task, AskUserQuestion, TodoWrite
@@ -8,7 +8,7 @@ allowed-tools: Read, Glob, Grep, Bash, Write, Edit, Task, AskUserQuestion, TodoW
 
 When this skill is invoked:
 
-Skill own report kiến trúc module của project, chạy TRƯỚC spec. Protocol tác giả + reviewer sống
+Skill own report kiến trúc module của project — artifact cấp project duy nhất của ndvkit v2. Protocol tác giả + reviewer sống
 trong `module-architect` (§Mode blueprint, §Mode blueprint-review; schema ở §Artifact
 blueprint.json); luật thiết kế là `<kitRulesRoot>/Shared/module-design.md` (MD-01…MD-25); check /
 render / approve do `scripts/ndv_blueprint.py` cạnh file này (deterministic, không tốn agent). Skill
@@ -20,29 +20,28 @@ không restate các protocol đó.
 
 - **band** — `foundation`: module tái dùng được ở project khác (đủ 6 tiêu chí MD-18) | `game`.
 - **Layer k** — module band `game`: 1 + max Layer của module `game` nó depend (dep vào Foundation
-  tính 0). Band Foundation chia row theo dep nội bộ Foundation. KHÁC field `layer` của modules.json
-  (topological trên toàn graph, `module-architect` §Layering rules) — hai số không thay thế nhau.
+  tính 0). Band Foundation chia row theo dep nội bộ Foundation. Script tính, không ghi vào `bp`.
 - **buildMode** — `new` | `extend` | `rebuild` | `existing`; khác `new` bắt buộc `extends` code cite (MD-21).
 - **role** — `composition` (composition root, MD-16) | `presentation` (UI feature home, MD-22).
 
 ## Phase 0 — Config & preflight
 
-1. Read `.claude/ndvkit/ndvkit.config.json` → `gddRoot`, `matrixRoot`, `specsRoot`, `codeRoots`,
-   `templates`, `rulesRoot`, `kitRulesRoot` (vắng → `.claude/rules`, `.claude/ndvkit/rules`).
+1. Read `.claude/ndvkit/ndvkit.config.json` → `gddRoot`, `ndvRoot`, `codeRoots`, `templates`,
+   `rulesRoot`, `kitRulesRoot` (vắng → `.ndv`, `.claude/rules`, `.claude/ndvkit/rules`).
 2. `.claude/agents/module-architect.md` phải có §Mode blueprint — else STOP, chỉ README
    §Activation (agent là bản COPY, phải copy lại).
-3. `bp` = `<matrixRoot>/blueprint.json`; `script` = `python3
+3. `bp` = `<ndvRoot>/blueprint.json`; `script` = `python3
    .claude/ndvkit/skills/ndv-blueprint/scripts/ndv_blueprint.py` (Windows: `python` / `py -3`),
    chạy từ repo root. Không có Python → STOP: cycle / band / cite check và render là điều kiện của
    gate, không làm tay.
-4. Model: author `opus`, reviewer `fable` (README §Model routing). Host override (prefix `[model]`
+4. Model: author `opus`, reviewer `fable` (README §8). Host override (prefix `[model]`
    của user, rule model trong `CLAUDE.md` — kể cả `~/.claude/CLAUDE.md`) thắng.
 
 ## Parse arguments
 
 - `<gdd-folder>` — mặc định `<gddRoot>`. Không tồn tại → fail rõ, không bịa GDD. Nằm ngoài
-  `<gddRoot>` → AskUserQuestion: sửa `gddRoot` trong config thành folder này (`/ndv-blueprint-to-spec` và
-  doc-cite chỉ nhận cite dưới `gddRoot`) / chạy tiếp (script báo `outside-gddRoot`).
+  `<gddRoot>` → AskUserQuestion: sửa `gddRoot` trong config thành folder này (script chỉ nhận cite
+  dưới `gddRoot`) / chạy tiếp (script báo `outside-gddRoot`).
 - `gddFiles` = Glob `<gdd-folder>/**/*.md`, bỏ folder bắt đầu bằng `_` (vd `_work/` của
   gdd-forge). Rỗng → fail.
 - `--update`, hoặc `bp` đã tồn tại → `mode: update`; còn lại `create`.
@@ -54,7 +53,7 @@ không restate các protocol đó.
    `allFiles: 0` → `codeGraph: none` (greenfield); `allFiles > 0` mà `files: 0` (stack script chưa
    hỗ trợ, hoặc chỉ có asset) → `codeGraph: unavailable` — architect tự đọc code, MD-25 không được
    script kiểm, report ghi rõ.
-3. `existing` = id có entry `<matrixRoot>/modules.json` hoặc folder `<specsRoot>/<NNN>_<ID>/` — frozen.
+3. `existing` = id của module trong `bp` hiện có (update mode) — frozen, không rename.
 4. Update mode: copy `bp` sang thư mục tạm (`mktemp -d`) làm `baseline` để report diff.
 
 ## Phase 2 — Author
@@ -67,20 +66,19 @@ Spawn `module-architect` (Task, model của Phase 0 bước 4) **Mode blueprint*
 
 `script --check --json`. Finding blocking mà `gateOnly: false` → resume CHÍNH instance author với
 output script (fix round), tối đa 2 vòng; còn → STOP: report Finding/Evidence/Impact, không review,
-không gate. `gateOnly: true` (chỉ còn `approval-void` — nội dung đổi sau approve — và / hoặc
-`matrix-band-violation` — modules.json lệch band, author không sửa được) → sang Phase 4; hai kind
-này hỏi ở Gate.
+không gate. `gateOnly: true` (chỉ còn `approval-void` — nội dung đổi sau approve) → sang Phase 4; kind này hỏi
+ở Gate.
 
 ## Phase 4 — Review
 
 Spawn instance `module-architect` MỚI **Mode blueprint-review** (read-only, độc lập với author —
-hai vai của một agent, như FINDER/VERIFIER của `code-auditor`). Defect → resume author (fix round;
+hai vai của một agent). Defect → resume author (fix round;
 author được dispute kèm evidence) → Phase 3. Tối đa 2 vòng review; vòng 2 chỉ nhận delta. Defect
 còn mở hoặc bị dispute → mang sang Gate.
 
 ## Phase 5 — Render
 
-`script --render` → `<matrixRoot>/blueprint.html` (từ `<templates>/blueprint-template.html`; bảng
+`script --render` → `<ndvRoot>/blueprint.html` (từ `<templates>/blueprint-template.html`; bảng
 Checks trong HTML = warning của script). Báo path cho user mở trước khi trả lời gate (macOS: `open
 <path>`).
 
@@ -88,10 +86,7 @@ Checks trong HTML = warning của script). Báo path cho user mở trước khi 
 
 Hỏi theo thứ tự — batch trước đổi tập module nên đi trước:
 
-1. Decision `project` (ownership code legacy, assembly strategy, module shape của host) +
-   `matrix-band-violation`: đổi band trong blueprint (resume author) / sửa phía spec / matrix
-   (`/ndv-specify <MODULE>`, `/ndv-module-matrix`) — chọn hướng này thì lượt gate dừng ở đây, không
-   approve; report rồi user chạy lại `/ndv-blueprint` sau khi sửa.
+1. Decision `project` (ownership code legacy, assembly strategy, module shape của host).
 2. Decision `foundation` (admission, mechanism + binding — MD-18, MD-19).
 3. Decision `boundary` (split / merge so với bảng system của GDD, ranh giới thật).
 4. Decision `gdd-gap` (GDD im lặng / mâu thuẫn chặn ranh giới).
@@ -114,13 +109,34 @@ Approve → `script --approve <date>` (từ chối khi còn blocking hoặc deci
 `approvedDate`, `approvedDigest`) → `script --render`. Sửa nội dung `bp` sau approve → script báo
 `approval-void` (blocking) cho tới khi gate chạy lại. Không bao giờ tự set approval khi chưa có answer.
 
-## Phase 6 — Report
+## Phase 6 — deps.rules
 
-- Band / Layer → modules (`script --check --json` → `modules`; buildMode, role), decision đã chốt, defect còn lại, warning còn lại (kể cả
-  `dismissed`), path `blueprint.json` + `blueprint.html`.
-- Update mode: diff với `baseline` — module thêm / bỏ / đổi band, edge đổi. Module bị bỏ mà còn
-  `<specsRoot>/<NNN>_<ID>/` hoặc entry modules.json → báo, không xóa artifact downstream. Xóa `baseline`.
-- Next: `/ndv-blueprint-to-spec <blueprint-path>` — skill hỏi phạm vi layer rồi viết spec lần lượt từng
-  layer (mapping bám blueprint; GDD của run mặc định = `gddSources`; chạy từng file làm module
-  Foundation bị extend lặp và owner chưa đăng ký thành `contract-gap`) → `/ndv-plan` → `/ndv-tasks` →
-  `/ndv-implement`. Không commit.
+Sau approve, dẫn `<ndvRoot>/deps.rules` từ `bp` để `check-deps.sh` (`/ndv-verify`) ép hướng dependency:
+
+1. Chỉ xét module đã có code (`buildMode` ≠ `new`, hoặc folder của module tồn tại). Folder +
+   namespace của module lấy theo module convention của rule source (host rules → kit
+   `Unity/module-constraints.md`, `Unity/conventions.md`); `paths` của module shell brownfield thắng.
+   Không suy ra được folder hoặc namespace → bỏ module đó, liệt kê trong report.
+2. Với mỗi cặp module đã có code (A, B), A ≠ B: B không nằm trong `deps` trực tiếp của A, hoặc cặp
+   nằm trong `forbiddenDeps` → một dòng `<folder của A> <namespace của B>`. Module band `foundation`
+   cấm mọi namespace module `game`.
+3. File đã tồn tại: giữ nguyên dòng người dùng tự thêm (sau dòng `# manual`), chỉ thay phần sinh.
+   Đầu file: `# generated by /ndv-blueprint <date> — do not edit above "# manual"`.
+4. Chạy `bash .claude/ndvkit/scripts/check-deps.sh`: vi phạm hiện có → báo trong report như finding
+   (code đang lệch blueprint), không tự sửa code.
+
+## Phase 7 — Report
+
+- Band / Layer → modules (`script --check --json` → `modules`; buildMode, role), decision đã chốt,
+  defect còn lại, warning còn lại (kể cả `dismissed`), path `blueprint.json` + `blueprint.html` +
+  `deps.rules`, vi phạm dependency hiện có.
+- Update mode: diff với `baseline` — module thêm / bỏ / đổi band, edge đổi. Module bị bỏ mà còn code
+  → báo, không xóa code. Xóa `baseline`.
+- Approve: ghi `git log -1 --format=%H -- <gddRoot>` (commit GDD mà blueprint vừa phản ánh) vào
+  `<ndvRoot>/gdd-ref` — mốc của `/ndv-impact` và SessionStart hook.
+- Không commit.
+
+**Tiếp theo** (một dòng, theo kết quả):
+- Còn blocking / decision mở → trả lời gate rồi `/ndv-blueprint --update`.
+- Approved, có vi phạm dependency → `/ndv-brief "sửa vi phạm dependency: <module>"`.
+- Approved, sạch → `/ndv-brief <feature>` cho task đầu tiên (feature lớn: `/ndv-brief <feature> --L`).

@@ -1,3 +1,8 @@
+---
+paths:
+  - "**/*.cs"
+---
+
 # Known Pitfalls
 
 Common mistakes trong Unity development. Read before implementing. Project host có thể có

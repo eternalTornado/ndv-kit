@@ -1,3 +1,8 @@
+---
+paths:
+  - "**/*.cs"
+---
+
 # Unity Security
 
 > Extends [../Shared/security.md](../Shared/security.md). Đây là SoT trust boundary

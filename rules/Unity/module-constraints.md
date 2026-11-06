@@ -1,3 +1,9 @@
+---
+paths:
+  - "**/*.cs"
+  - "**/*.asmdef"
+---
+
 # Unity Patterns — world / module / hot-path contracts
 
 > Cross-cutting principles (logging format, SDK adapter, Unity constraints table):

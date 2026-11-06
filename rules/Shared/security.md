@@ -1,3 +1,11 @@
+---
+paths:
+  - "**/*.cs"
+  - "**/*.go"
+  - "**/*.ts"
+  - "**/*.js"
+---
+
 # Security Guidelines
 
 ## Mandatory Security Checks
